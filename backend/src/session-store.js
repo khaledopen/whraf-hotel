@@ -19,7 +19,7 @@ export class MySQLSessionStore extends session.Store {
 
   set(id, value, callback = () => {}) {
     const expires = value.cookie?.expires ? new Date(value.cookie.expires).getTime() : Date.now() + 8 * 3600000;
-    this.database.execute('INSERT INTO sessions (session_id, expires, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE expires = ?, data = ?', [id, expires, JSON.stringify(value), expires, JSON.stringify(value)])
+    this.database.execute('INSERT INTO sessions (session_id, expires, data) VALUES (?, ?, ?) ON CONFLICT (session_id) DO UPDATE SET expires = EXCLUDED.expires, data = EXCLUDED.data', [id, expires, JSON.stringify(value)])
       .then(() => callback(null)).catch(callback);
   }
 

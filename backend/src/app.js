@@ -28,12 +28,12 @@ export function createApp({database=db,sessionStore,transport}={}){
  app.use('/api',(_req,res,next)=>{res.set('Cache-Control','no-store');next();});
  const requireAdmin=(req,res,next)=>req.session.adminId?next():res.status(401).json({message:'Connexion requise.'});
  const csrf=(req,res,next)=>{if(!safeEqual(req.get('X-CSRF-Token'),req.session.csrf))return res.status(403).json({message:'Session expirée. Rechargez la page.'});next();};
- app.get('/api/health',async(_req,res)=>{try{await database.query('SELECT 1');res.json({ok:true});}catch{res.status(503).json({message:'Base MySQL indisponible.'});}});
+ app.get('/api/health',async(_req,res)=>{try{await database.query('SELECT 1');res.json({ok:true});}catch{res.status(503).json({message:'Base PostgreSQL indisponible.'});}});
  app.get('/api/content',async(_req,res)=>{
  const [rooms]=await database.query(`SELECT * FROM room_types WHERE ${visibility}`);
  const [media]=await database.query(`SELECT * FROM media WHERE ${visibility}`);
  const [pages]=await database.query(`SELECT * FROM page_contents WHERE ${visibility}`);
- const [settings]=await database.query(`SELECT setting_key,value,validated FROM hotel_settings ${demo?'':'WHERE validated=1'}`);
+ const [settings]=await database.query(`SELECT setting_key,value,validated FROM hotel_settings ${demo?'':'WHERE validated=TRUE'}`);
  const [links]=await database.query('SELECT * FROM room_type_media');const [amenityLinks]=await database.query('SELECT ra.room_type_id,a.id,a.name FROM room_type_amenities ra JOIN amenities a ON a.id=ra.amenity_id');
  res.json({demo,rooms:rooms.map(r=>({...r,media:media.filter(m=>links.some(l=>l.room_type_id===r.id&&l.media_id===m.id)),amenities:amenityLinks.filter(a=>a.room_type_id===r.id)})),media,pages,settings:Object.fromEntries(settings.map(s=>[s.setting_key,s.value]))});
  });
@@ -57,7 +57,7 @@ export function createApp({database=db,sessionStore,transport}={}){
  });
  app.post('/api/auth/logout',requireAdmin,csrf,(req,res,next)=>req.session.destroy(e=>{if(e)return next(e);res.clearCookie('wharf.sid');res.json({ok:true});}));
  app.use('/api/admin',requireAdmin,(req,res,next)=>{if(['GET','HEAD'].includes(req.method))return next();csrf(req,res,next);});
- app.get('/api/admin/dashboard',async(_req,res)=>{const counts={};for(const [key,table] of Object.entries(requestTables)){const [rows]=await database.query(`SELECT COUNT(*) AS total,SUM(status='pending') AS pending,SUM(notification_status IN ('failed','pending')) AS notification_failures FROM ${table}`);counts[key]=rows[0];}res.json(counts);});
+ app.get('/api/admin/dashboard',async(_req,res)=>{const counts={};for(const [key,table] of Object.entries(requestTables)){const [rows]=await database.query(`SELECT COUNT(*) AS total, COUNT(CASE WHEN status='pending' THEN 1 END) AS pending, COUNT(CASE WHEN notification_status IN ('failed','pending') THEN 1 END) AS notification_failures FROM ${table}`);counts[key]=rows[0];}res.json(counts);});
  for(const [key,table] of Object.entries(requestTables)){
  app.get(`/api/admin/${key}`,async(_req,res)=>{const [rows]=await database.query(`SELECT * FROM ${table} ORDER BY created_at DESC LIMIT 1000`);res.json(rows);});
  app.put(`/api/admin/${key}/:id`,async(req,res)=>{const data=validate(requestUpdate,req.body);const [r]=await database.execute(`UPDATE ${table} SET status=?,internal_notes=? WHERE id=?`,[data.status,data.internal_notes,req.params.id]);if(!r.affectedRows)return res.status(404).json({message:'Demande introuvable.'});res.json({ok:true});});
