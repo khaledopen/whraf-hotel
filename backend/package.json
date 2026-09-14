@@ -1,0 +1,30 @@
+{
+  "name": "wharf-backend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --env-file-if-exists=.env src/server.js",
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "migrate": "node --env-file-if-exists=.env src/manage.js migrate",
+    "seed": "node --env-file-if-exists=.env src/manage.js seed",
+    "admin:create": "node --env-file-if-exists=.env src/manage.js admin",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "mysql2": "^3.24.4",
+    "express-session": "^1.18.2",
+    "bcrypt": "^6.0.0",
+    "nodemailer": "^10.0.10",
+    "zod": "^4.0.0",
+    "helmet": "^8.1.0",
+    "cors": "^2.8.5",
+    "express-rate-limit": "^8.0.1",
+    "multer": "^2.0.2",
+    "sharp": "^0.35.4"
+  },
+  "devDependencies": {
+    "supertest": "^7.1.4"
+  }
+}
