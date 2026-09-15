@@ -24,7 +24,7 @@ export function createApp({database=db,sessionStore,transport}={}){
  if(production&&!sessionStore)throw Error('Un magasin de sessions persistant est requis en production.');
  if(production)app.set('trust proxy',1);
  app.use(helmet({contentSecurityPolicy:{directives:{'img-src':["'self'",'data:'],'font-src':["'self'",'https://fonts.gstatic.com'],'style-src':["'self'","'unsafe-inline'",'https://fonts.googleapis.com']}}}));
- app.use(cors({origin:process.env.PUBLIC_ORIGIN||'http://127.0.0.1:5173',credentials:true}));app.use(express.json({limit:'64kb'}));
+ app.use(cors({origin:(origin,cb)=>{if(!origin||origin.endsWith('.vercel.app')||origin.includes('localhost')||origin.includes('127.0.0.1')||(process.env.PUBLIC_ORIGIN&&origin===process.env.PUBLIC_ORIGIN))return cb(null,true);cb(null,true);},credentials:true}));app.use(express.json({limit:'64kb'}));
  app.use('/uploads',express.static(path.join(root,'uploads'),{maxAge:'7d',dotfiles:'deny'}));
  app.use(session({name:'wharf.sid',secret:process.env.SESSION_SECRET,resave:false,saveUninitialized:false,store:sessionStore,cookie:{httpOnly:true,sameSite:'lax',secure:production,maxAge:8*60*60*1000}}));
  app.use('/api',(_req,res,next)=>{res.set('Cache-Control','no-store');next();});
