@@ -9,7 +9,8 @@
     "migrate": "node --env-file-if-exists=.env src/manage.js migrate",
     "seed": "node --env-file-if-exists=.env src/manage.js seed",
     "admin:create": "node --env-file-if-exists=.env src/manage.js admin",
-    "test": "node --test"
+    "test": "node --test",
+    "smtp:check": "node --env-file-if-exists=.env src/check-smtp.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

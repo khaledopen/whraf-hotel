@@ -1,52 +1,72 @@
-# Wharf Hôtel — Grand-Bassam
+﻿# Wharf Hôtel — PostgreSQL et réservations par e-mail
 
-Site React/Vite en français, API Express/MySQL et administration privée. Réalisé à partir des trois maquettes et des photographies fournies. Aucun déploiement public effectué.
+Le site utilise React/Vite et Express avec PostgreSQL (`pg`). Les réservations, sessions administrateur et e-mails en attente sont persistés dans la base. Les styles et contenus existants sont conservés.
 
-## Prérequis et architecture
+## Lancer l’installation existante
 
-- Node.js 24 LTS (environnement de développement : 24.11.0), npm 11.
-- MySQL 8.0.16 minimum, idéalement MySQL 8.4 LTS, avec une base UTF-8 `utf8mb4`.
-- `frontend/` : React 19, React Router 7, Vite 7, Tailwind CSS 4, Lucide React, JavaScript.
-- `backend/` : Express 5, mysql2 3.24, bcrypt 6, sessions MySQL persistantes, Nodemailer 10, Zod 4, Multer 2 et Sharp 0.35.
-- Les versions exactes installées sont figées dans `package-lock.json`. Utiliser `npm ci` pour les reproduire.
-
-Compatibilité vérifiée dans les documentations officielles : [Vite 7 et Node.js](https://v7.vite.dev/guide/migration), [Express 5 et Node.js](https://expressjs.com/en/guide/migrating-5/).
-
-Les pages publiques lisent `/api/content`. Les formulaires envoient réellement à `/api/reservations`, `/api/events` et `/api/contacts`. L’administration est à `/admin`. Aucune inscription publique, aucun paiement, aucun stock simulé.
-
-Le magasin de sessions utilise directement le même pool mysql2 corrigé que l’API, avec expiration et nettoyage périodique des sessions en base.
-
-## Installation
-
-Depuis la racine :
+Ne pas écraser `backend/.env`, ni importer les données de démonstration sur votre base réelle.
 
 ```powershell
 npm ci
-Copy-Item backend/.env.example backend/.env
+npm run db:migrate
+npm run dev
 ```
 
-Créer une base et un utilisateur MySQL avec votre compte d’administration MySQL (remplacer le mot de passe d’exemple) :
+- Site : http://127.0.0.1:5173
+- Administration : http://127.0.0.1:5173/admin
+- API : http://127.0.0.1:3001/api
 
-```sql
-CREATE DATABASE wharf_hotel CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'wharf'@'localhost' IDENTIFIED BY 'CHOISIR_UN_MOT_DE_PASSE_FORT';
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, INDEX, REFERENCES, ALTER ON wharf_hotel.* TO 'wharf'@'localhost';
-```
+La migration est transactionnelle et relançable. Elle ajoute `notification_jobs` et `form_submissions` sans remplacer les demandes, chambres ou comptes existants. Elle répare également le motif précis `maps$1q=` introduit dans un lien Google Maps par l’ancien adaptateur SQL. Ne pas lancer `backend/sql/real_data.sql` automatiquement : ce fichier est conservé tel que fourni.
 
-Renseigner `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` et `SESSION_SECRET` dans `backend/.env`. Générer un secret avec `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`. Ne jamais versionner ce fichier.
+## Configuration
 
-Alternative si Docker Desktop est installé : `compose.yaml` fournit MySQL 8.4 avec volume persistant et port local. Définir `DB_PASSWORD` et `MYSQL_ROOT_PASSWORD` dans l’environnement du terminal, puis lancer `docker compose up -d` et attendre l’état sain avant la migration. Le mot de passe `DB_PASSWORD` doit correspondre à celui de `backend/.env`.
+Node.js 24, PostgreSQL et les versions exactes de `package-lock.json`. Pour une nouvelle installation seulement, copier `backend/.env.example` vers `backend/.env`, puis renseigner :
+
+- `DB_HOST`, `DB_PORT` (5432), `DB_USER`, `DB_PASSWORD`, `DB_NAME`, ou `DATABASE_URL`.
+- `DB_SSL=true` si votre hébergeur exige TLS ; un certificat valide reste obligatoire.
+- `SESSION_SECRET` : au moins 32 caractères aléatoires.
+- `PUBLIC_ORIGIN` : origine du site, identique à celle utilisée dans le navigateur.
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `NOTIFICATION_EMAIL`.
+- `NOTIFICATIONS_ENABLED=true` : active le traitement des e-mails. `false` est réservé aux essais sans envoi.
+
+Le port 465 utilise généralement `SMTP_SECURE=true`, le port 587 `false` avec négociation STARTTLS. Aucun expéditeur ni destinataire n’est inventé si la configuration manque. `SMTP_PASS` reste accepté pour compatibilité ; préférer `SMTP_PASSWORD`.
+
+Vérifier la connexion sans envoyer d’e-mail :
 
 ```powershell
-npm run db:migrate
-npm run db:demo
+npm run smtp:check -w backend
 ```
 
-La migration est relançable. Le script de démonstration séparé crée des brouillons, une catégorie fictive explicitement identifiée et des coordonnées non validées. Il refuse de s’exécuter en production. `DEMO_MODE=true` permet leur consultation uniquement en développement. Ne pas transformer une catégorie fictive en catégorie officielle sans confirmation de l’hôtel.
+Le même diagnostic se trouve dans le tableau de bord administrateur. Il valide la connexion et l’authentification, pas la réception effective dans une boîte mail.
 
-## Premier administrateur
+## Parcours de réservation
 
-Aucun identifiant ni mot de passe par défaut. Le mot de passe doit comporter au moins 14 caractères. Sous PowerShell, le saisir sans affichage, puis lancer la commande interactive :
+1. Le visiteur envoie le formulaire. La demande, sa clé anti-doublon et le travail de notification sont enregistrés dans **une même transaction PostgreSQL**.
+2. Le site affiche le succès après cet enregistrement, sans attendre le SMTP. Ce succès ne confirme pas le séjour.
+3. Un traitement du backend relève les e-mails toutes les cinq secondes. La notification de réception est adressée à l’hôtel.
+4. Un administrateur choisit explicitement « Confirmée par l’hôtel » et enregistre. Cela met une confirmation client en attente pour les réservations et événements. Un message de contact ne reçoit jamais un faux récapitulatif de séjour.
+5. L’administration distingue notification à l’hôtel et confirmation au client : attente, envoi, remise au serveur mail, échec, configuration manquante ou annulation.
+
+Un délai réseau et une nouvelle tentative avec les mêmes données et la même clé ne créent pas une deuxième réservation. Les soumissions concurrentes de la même clé sont sérialisées. Modifier les informations après un délai d’attente correspond à une nouvelle demande ; en cas de doute, conserver les informations et réessayer.
+
+## Échecs et reprises
+
+- Un échec SMTP conserve la demande et un message d’erreur sans données personnelles.
+- Jusqu’à cinq tentatives sont effectuées, avec attente progressive (1, 2, 4 puis 8 minutes).
+- Après correction du SMTP, « Relancer cet e-mail » remet un envoi échoué ou non configuré en attente. Un envoi déjà remis au serveur ne peut pas être relancé par ce bouton.
+- Une confirmation en attente est annulée si la demande cesse d’être confirmée avant son traitement. Un e-mail déjà transmis ne peut pas être rappelé.
+- Les travaux interrompus par un arrêt du backend sont récupérés après expiration du verrou de deux minutes. Plusieurs workers ne traitent pas simultanément le même travail.
+- Le suivi se rafraîchit toutes les cinq secondes lorsqu’un envoi est en cours, en conservant les notes en cours de saisie.
+
+Les anciennes demandes n’ont pas été réexpédiées automatiquement : leur ancien champ `notification_status` mélangeait deux types d’e-mail et ne permet pas de déduire une livraison fiable. Elles sont signalées comme historiques sans suivi détaillé.
+
+Le SMTP ne fournit pas de garantie absolue « une seule fois » : si le serveur accepte un message puis que le processus s’arrête avant l’enregistrement du succès, une reprise peut le remettre une seconde fois. Le `Message-ID` reste stable pour faciliter la déduplication côté messagerie. « Remis au serveur mail » ne signifie pas « lu » ni nécessairement « arrivé dans la boîte principale ».
+
+## Nouvelle base et administrateur
+
+Créer une base PostgreSQL UTF-8 et un rôle qui la possède, puis lancer `npm run db:migrate`. `compose.yaml` propose une alternative PostgreSQL 17 sur le port local 5432 avec volume persistant ; ne pas la lancer si votre instance occupe déjà ce port. Définir `DB_PASSWORD` dans le terminal avant `docker compose up -d`.
+
+Pour créer le premier administrateur sans mot de passe par défaut :
 
 ```powershell
 $adminSecurePassword = Read-Host 'Mot de passe administrateur' -AsSecureString
@@ -55,59 +75,30 @@ npm run admin:create
 Remove-Item Env:ADMIN_PASSWORD
 ```
 
-La commande demande l’adresse e-mail, puis stocke uniquement le hachage bcrypt. Une adresse déjà utilisée est refusée.
+La commande demande l’e-mail. Le mot de passe doit avoir au moins 14 caractères ; seul le hachage bcrypt est conservé. `npm run db:demo` est optionnel et strictement réservé à une base de développement.
 
-## Développement
-
-```powershell
-npm run dev
-```
-
-Ouvrir http://127.0.0.1:5173. Vite transmet `/api` et `/uploads` à Express sur le port 3001. Utiliser la même origine configurée dans `PUBLIC_ORIGIN` pour les cookies. Sans API disponible, Vite affiche un aperçu local clairement signalé ; les formulaires ne simulent jamais un succès. Ce jeu de secours est absent du build de production.
-
-## Administration
-
-1. Créer les équipements et téléverser les photographies, puis renseigner leurs descriptions et catégories.
-2. Créer les catégories de chambres, leurs capacités connues, tarifs entiers en FCFA et conditions. Associer photos et équipements avec les cases de sélection.
-3. Compléter les textes (`hotel`, `restaurant`, `piscine-plage`, `evenements`, `mentions-legales`, `confidentialite`) et les coordonnées.
-4. Après vérification effective par l’hôtel, cocher « Contenu vérifié », décocher « Démonstration » et choisir « Publié ». La validation des photos est indépendante de celle des chambres.
-5. Consulter les demandes et enregistrer leur statut et leurs notes internes. « Confirmée par l’hôtel » constitue une action explicite, jamais déclenchée à la réception.
-
-Les coordonnées non validées ne sont pas exposées en production. Les champs non renseignés et les catégories non publiées disposent d’états vides. Les textes sont rendus comme texte, sans HTML injecté. La suppression d’un contenu est définitive après confirmation ; les demandes conservent leur historique même si leur catégorie est supprimée.
-
-## E-mails
-
-Configurer les variables `SMTP_*` et `NOTIFICATION_EMAIL`. Le serveur enregistre d’abord la demande, puis notifie l’administration avec sa référence, sans inclure les données personnelles dans l’e-mail. Si SMTP échoue, la demande reste enregistrée et `notification_status=failed` apparaît dans l’administration. En l’absence de configuration, l’état est `unconfigured`. Aucune confirmation définitive de séjour n’est envoyée automatiquement.
-
-## Production (préparation, sans publication)
-
-```powershell
-npm run build
-```
-
-Sur votre serveur final, définir `NODE_ENV=production`, `DEMO_MODE=false`, `PUBLIC_ORIGIN=https://VOTRE_DOMAINE` et les secrets, puis exécuter `npm start`. Express sert `frontend/dist` et l’API. Il écoute localement sur 3001 et attend un reverse proxy HTTPS de confiance (exactement un proxy pour `trust proxy=1`). Les cookies sont Secure, HttpOnly et SameSite=Lax. Conserver les téléchargements dans `backend/uploads` et sauvegarder ce dossier et MySQL. Les sessions sont stockées dans la table `sessions`, créée par la migration.
-
-Le sitemap est servi sur `/sitemap.xml` à partir de `PUBLIC_ORIGIN`. Mettre l’URL du sitemap dans `frontend/public/robots.txt` une fois le domaine final connu. `/admin` est exclu de l’indexation et protégé côté API. Les métadonnées des pages publiques sont mises à jour côté React ; une pré-génération HTML serait nécessaire pour les robots qui n’exécutent pas JavaScript.
-
-Les photos locales sont servies depuis `frontend/public/photos` ; toutes proviennent des fichiers fournis. Les nouvelles images sont décodées, limitées à 25 mégapixels et 5 Mo, réencodées en WebP, redimensionnées à 1800 px et renommées aléatoirement. Les polices sont chargées depuis Google Fonts avec polices de secours ; les auto-héberger si la politique de confidentialité l’exige.
-
-## Contenus à confirmer avant publication
-
-- Droit d’utilisation de chaque photographie et logo officiel.
-- Adresse, localisation GPS, téléphone, e-mail et Facebook du cadrage initial.
-- Catégories réelles, capacités, équipements, tarifs et conditions des chambres.
-- Prestations et horaires du restaurant ; conditions d’accès piscine et plage.
-- Espaces événementiels et capacités, sans promesses non validées.
-- Identité juridique de l’exploitant et mentions légales.
-- Politique de confidentialité complète, durée de conservation, destinataires et exercice des droits.
-
-Aucun numéro WhatsApp, classement en étoiles, avis, histoire, menu, prix ou disponibilité n’a été inventé. Le tarif reste « sur demande » s’il n’est pas renseigné.
-
-## Vérifications
+## Validation
 
 ```powershell
 npm test
+$env:RUN_PG_TESTS = 'true'
+node --env-file=backend/.env --test backend/test/api.test.js backend/test/postgres.integration.test.js
+Remove-Item Env:RUN_PG_TESTS
 npm run build
 ```
 
-Les tests HTTP emploient un double contrôlé de mysql2 : ils vérifient validation, enregistrement avant notification, maintien après échec SMTP, capacité, refus d’accès anonyme, sessions, CSRF, modification et interdiction de publier une démonstration. Ils ne remplacent pas une vérification d’intégration contre MySQL. Voir `VERIFICATION.md` pour les résultats effectivement obtenus et les limites de l’environnement.
+Les tests d’intégration créent un schéma `wharf_test_<identifiant aléatoire>` sur le serveur configuré, effectuent les essais et suppriment uniquement ce schéma. Le rôle doit avoir le droit de créer des schémas. Tous les envois y utilisent un transport simulé et des adresses `example.invalid` : aucun client ni réceptionniste ne reçoit de message. Les réservations de l’hôtel ne sont pas modifiées.
+
+Voir `VERIFICATION.md` pour les résultats réellement obtenus.
+
+## Production
+
+`npm run build`, puis `npm start` avec `NODE_ENV=production`, `DEMO_MODE=false` et `PUBLIC_ORIGIN` configuré en HTTPS. Appliquer les migrations avant de démarrer. Express écoute localement sur 3001 derrière un reverse proxy HTTPS de confiance. Les sessions PostgreSQL utilisent des cookies HttpOnly, SameSite=Lax et Secure en production. Les routes administrateur sont protégées et leurs écritures exigent un jeton CSRF.
+
+Sauvegarder PostgreSQL et `backend/uploads`. Les contenus non validés et les données de démonstration restent exclus du site public. Vérifier les coordonnées, catégories, capacités, prix, droits sur les images, informations juridiques et politique de confidentialité avant toute publication. Aucun déploiement n’a été effectué.
+
+## Références techniques
+
+- [Paramètres PostgreSQL natifs](https://node-postgres.com/features/queries) et [gestion des dates](https://node-postgres.com/features/types).
+- [Verrouillage SKIP LOCKED pour les files de travaux](https://www.postgresql.org/docs/17/sql-select.html).
+- [Transport SMTP et limites de verify()](https://nodemailer.com/smtp).
