@@ -17,7 +17,7 @@ import {submitRequest,updateRequest,retryNotification} from './requests.js';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const requestTables={reservations:'reservation_requests',events:'event_requests',contacts:'contact_messages'};
 const safeEqual=(a,b)=>typeof a==='string'&&typeof b==='string'&&Buffer.byteLength(a)===Buffer.byteLength(b)&&timingSafeEqual(Buffer.from(a),Buffer.from(b));
-export function createApp({database=db,sessionStore,transport}={}){
+export function createApp({database=db,sessionStore,transport,drainNotifications}={}){
  const app=express();const production=process.env.NODE_ENV==='production';
  app.use((req,_res,next)=>{if(req.url.startsWith('/content')||req.url.startsWith('/health')||req.url.startsWith('/auth')||req.url.startsWith('/reservations')||req.url.startsWith('/events')||req.url.startsWith('/contacts')||req.url.startsWith('/admin'))req.url='/api'+req.url;next();});
  if(!process.env.SESSION_SECRET||process.env.SESSION_SECRET.length<32||process.env.SESSION_SECRET.startsWith('replace-'))throw Error('Configurez SESSION_SECRET avec au moins 32 caractères aléatoires.');
@@ -46,6 +46,8 @@ export function createApp({database=db,sessionStore,transport}={}){
  const data=validate(schema,req.body);
  const result=await submitRequest(database,route,data,req.get('Idempotency-Key'));
  res.status(result.replayed?200:201).json({id:result.id,message:route==='reservations'?'Votre demande a bien été reçue. L’hôtel vous contactera pour confirmer la disponibilité et les modalités de votre séjour.':'Votre demande a bien été reçue. L’hôtel vous contactera prochainement.'});
+ // In serverless environments (Vercel), drain notification queue inline since no background worker runs.
+ if(drainNotifications) drainNotifications().catch(e=>console.error('Notifications inline:',e?.message||e));
  });}
  app.get('/api/auth/session',(req,res)=>{req.session.csrf ||= randomBytes(32).toString('hex');res.json({authenticated:!!req.session.adminId,csrf:req.session.csrf});});
  app.post('/api/auth/login',rateLimit({windowMs:15*60*1000,limit:5,message:{message:'Trop de tentatives. Réessayez dans 15 minutes.'}}),csrf,async(req,res)=>{
