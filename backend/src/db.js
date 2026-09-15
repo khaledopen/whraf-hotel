@@ -1,4 +1,4 @@
-﻿import pg from 'pg';
+import pg from 'pg';
 export const pgTypes = {
   getTypeParser(oid, format) {
     if (oid === 1082) return value => value;
@@ -12,7 +12,7 @@ export const pool = new pg.Pool({
     user:process.env.DB_USER || 'postgres', password:String(process.env.DB_PASSWORD ?? ''),
     database:process.env.DB_NAME || 'wharf_hotel'
   }),
-  ...(process.env.DB_SSL === 'true' ? {ssl:{rejectUnauthorized:true}} : {}),
+  ...(process.env.DATABASE_URL || process.env.DB_SSL === 'true' ? {ssl:{rejectUnauthorized:false}} : {}),
   max:10, connectionTimeoutMillis:5000, idleTimeoutMillis:30000,
   statement_timeout:10000, query_timeout:15000, types:pgTypes
 });
