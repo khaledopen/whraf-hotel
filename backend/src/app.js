@@ -1,4 +1,4 @@
-import express from 'express';
+﻿import express from 'express';
 import session from 'express-session';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -80,6 +80,11 @@ export function createApp({database=db,sessionStore,transport,drainNotifications
  if(req.params.id){const [r]=await conn.execute(`UPDATE ${table} SET ${keys.map((k,i)=>`${k}=$${i+1}`).join(',')},updated_at=NOW() WHERE id=$${keys.length+1}`,[...Object.values(data),id]);if(!r.affectedRows){const e=Error('Contenu introuvable.');e.status=404;throw e;}}
  else {const [r]=await conn.execute(`INSERT INTO ${table} (${keys.join(',')}) VALUES (${keys.map((_,i)=>`$${i+1}`).join(',')}) RETURNING id`,Object.values(data));id=r.insertId;}
  if(table==='room_types'){for(const [join,column,ids] of [['room_type_amenities','amenity_id',amenity_ids],['room_type_media','media_id',media_ids]]){await conn.execute(`DELETE FROM ${join} WHERE room_type_id=$1`,[id]);for(const linked of new Set(ids))await conn.execute(`INSERT INTO ${join}(room_type_id,${column}) VALUES ($1,$2)`,[id,linked]);}}
+  if(table==='room_types'&&data.status==='published'){
+    const [linkedMedia]=await conn.execute('SELECT media_id FROM room_type_media WHERE room_type_id=$1',[id]);
+    const allMediaIds=Array.isArray(linkedMedia)?linkedMedia.map(r=>r.media_id):(linkedMedia?.rows||[]).map(r=>r.media_id);
+    if(allMediaIds.length)await conn.execute("UPDATE media SET status='published',validated=TRUE,updated_at=NOW() WHERE id=ANY($1::int[]) AND is_demo=FALSE",[allMediaIds]);
+  }
  await conn.commit();res.status(req.params.id?200:201).json({id});}catch(e){await conn.rollback();throw e;}finally{conn.release();}
  };
  app.post(`/api/admin/${table}`,save);app.put(`/api/admin/${table}/:id`,save);

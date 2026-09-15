@@ -85,6 +85,18 @@ test('PostgreSQL réel : réservations, administration et reprise SMTP (schéma 
       assert.equal(fetched.status,200);assert.match(fetched.headers['content-type'],/image\/webp/);
       const created=await agent.post('/api/admin/media').set('X-CSRF-Token',csrf).send({url:uploaded.body.url,alt:'Chambre test',category:'Chambres',status:'draft',validated:false,is_demo:false});
       assert.equal(created.status,201);
+      const room={slug:'photo-publication-test',name:'Photo publication',description:'Test',capacity:2,price_fcfa:null,conditions_text:'',status:'draft',validated:false,is_demo:false,amenity_ids:[],media_ids:[created.body.id]};
+      const savedRoom=await agent.post('/api/admin/room_types').set('X-CSRF-Token',csrf).send(room);
+      assert.equal(savedRoom.status,201);
+      assert.equal((await database.query('SELECT status FROM media WHERE id=$1',[created.body.id]))[0][0].status,'draft');
+      assert.equal((await agent.put('/api/admin/room_types/'+savedRoom.body.id).set('X-CSRF-Token',csrf).send({...room,status:'published',validated:true})).status,200);
+      const content=await request(app).get('/api/content');
+      const publicRoom=content.body.rooms.find(r=>r.id===savedRoom.body.id);
+      assert.equal(publicRoom.media[0].url,uploaded.body.url);
+      assert.equal((await request(app).get(publicRoom.media[0].url)).status,200);
+      await database.execute("UPDATE media SET status='draft',validated=FALSE WHERE id=$1",[created.body.id]);
+      await migrate(database);
+      assert.equal((await request(app).get('/api/content')).body.rooms.find(r=>r.id===savedRoom.body.id).media[0].url,uploaded.body.url);
       assert.equal((await agent.post('/api/admin/upload').set('X-CSRF-Token',csrf).attach('image',Buffer.from('not an image'),'fake.jpg')).status,422);
     });
     await t.test('modification d’une chambre avec tables de liaison sans colonne id',async()=>{
