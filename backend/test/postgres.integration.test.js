@@ -67,6 +67,26 @@ test('PostgreSQL réel : réservations, administration et reprise SMTP (schéma 
       assert.equal((await database.query('SELECT * FROM sessions'))[0].length,1);
       assert.equal((await agent.get('/api/admin/dashboard')).status,200);
     });
+    await t.test('recherche par client, statut et chevauchement des nuits',async()=>{
+      const hit=await agent.get('/api/admin/reservations').query({q:'client@example.invalid',from:'2099-10-11',to:'2099-10-11',status:'pending'});
+      assert.equal(hit.status,200);assert.equal(hit.body.length,1);
+      assert.equal((await agent.get('/api/admin/reservations').query({from:'2099-10-12'})).body.length,0);
+      assert.equal((await agent.get('/api/admin/reservations').query({q:"' OR 1=1 --"})).body.length,0);
+      assert.equal((await agent.get('/api/admin/reservations').query({from:'2099-02-30'})).status,400);
+      assert.equal((await agent.get('/api/admin/reservations').query({from:'2099-12-01',to:'2099-01-01'})).status,400);
+    });
+    await t.test('image téléversée conservée dans PostgreSQL et accessible après recréation du serveur',async()=>{
+      const image=await readFile(new URL('../../frontend/public/photos/26.jpg',import.meta.url));
+      assert.equal((await request(app).post('/api/admin/upload').attach('image',image,'room.jpg')).status,401);
+      const uploaded=await agent.post('/api/admin/upload').set('X-CSRF-Token',csrf).attach('image',image,'room.jpg');
+      assert.equal(uploaded.status,201);assert.match(uploaded.body.url,/^\/api\/images\/.+\.webp$/);
+      const restarted=createApp({database,sessionStore:store});
+      const fetched=await request(restarted).get(uploaded.body.url);
+      assert.equal(fetched.status,200);assert.match(fetched.headers['content-type'],/image\/webp/);
+      const created=await agent.post('/api/admin/media').set('X-CSRF-Token',csrf).send({url:uploaded.body.url,alt:'Chambre test',category:'Chambres',status:'draft',validated:false,is_demo:false});
+      assert.equal(created.status,201);
+      assert.equal((await agent.post('/api/admin/upload').set('X-CSRF-Token',csrf).attach('image',Buffer.from('not an image'),'fake.jpg')).status,422);
+    });
     await t.test('modification d’une chambre avec tables de liaison sans colonne id',async()=>{
       const body={slug:'chambre-test',name:'Chambre test',description:'Description test',capacity:2,price_fcfa:120000,conditions_text:null,status:'draft',validated:false,is_demo:true,amenity_ids:[],media_ids:[1,2]};
       assert.equal((await agent.put('/api/admin/room_types/1').send(body)).status,403);

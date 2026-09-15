@@ -13,7 +13,7 @@ const publishing={status:z.enum(['draft','published']),validated:z.boolean(),is_
 export const schemas={
  room_types:z.object({slug:text(120).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),name:text(150),description:text(10000),capacity:integer(1,100).nullable(),price_fcfa:integer(0,1000000000).nullable(),conditions_text:z.string().max(5000).nullish().transform(v=>v||''),...publishing,amenity_ids:z.array(integer(1,100000)).default([]),media_ids:z.array(integer(1,100000)).default([])}),
  amenities:z.object({name:text(100)}),
- media:z.object({url:text(500).regex(/^\/(?:photos|uploads)\/[a-zA-Z0-9._-]+$/,'Image locale requise.'),alt:text(250),category:text(100),...publishing}),
+ media:z.object({url:text(500).regex(/^\/(?:photos|uploads|api\/images)\/[a-zA-Z0-9._-]+$/,'Image locale requise.'),alt:text(250),category:text(100),...publishing}),
  page_contents:z.object({slug:text(120).regex(/^[a-z0-9-]+$/),title:text(200),body:text(20000),...publishing}),
  hotel_settings:z.object({setting_key:z.enum(['address','phone','email','facebook','maps']),value:text(2000),validated:z.boolean()}).superRefine((v,c)=>{if(['facebook','maps'].includes(v.setting_key)){try{const u=new URL(v.value);if(u.protocol!=='https:')throw Error();}catch{c.addIssue({code:'custom',path:['value'],message:'URL HTTPS requise.'});}}})
 };

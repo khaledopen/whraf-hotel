@@ -1209,3 +1209,18 @@ textarea { resize: vertical; }
 .notification-status h3 { font-size: 1.25rem; }
 .notification-item { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 18px; font-size: .875rem; }
 .notification-item small { line-height: 1.5; }
+/* Reservation search and calendar */
+.reservation-filters {display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;align-items:end;margin-bottom:24px}
+.reservation-calendar {max-width:850px;padding:24px;border:1px solid #dce3e5;border-radius:16px;background:white;margin-bottom:24px}
+.calendar-grid {display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.calendar-grid>strong {text-align:center;font-size:12px;padding:8px 0}
+.calendar-grid>button {min-width:0;display:flex;flex-direction:column;gap:5px;padding:10px 2px;background:#eef4f5;color:#163847;border:2px solid transparent;border-radius:8px}
+.calendar-grid>button.selected {border-color:#147c83;background:#d7eeee}
+.calendar-dots,.calendar-legend {display:flex;gap:4px;flex-wrap:wrap}
+.calendar-legend {gap:12px;margin-top:16px;font-size:12px}
+.calendar-legend span {display:flex;gap:5px;align-items:center}
+.calendar-dots i,.calendar-legend i {display:inline-block;width:8px;height:8px;border-radius:50%}
+.status-pending {background:#b57b08}.status-processing {background:#386cb0}.status-confirmed {background:#18844d}.status-declined {background:#bc3535}.status-cancelled {background:#757575}
+.admin-photo-preview {width:100%;max-width:500px;height:280px;object-fit:contain;background:#edf2f3;border-radius:12px}
+.admin-photo-thumb {width:90px;height:65px;object-fit:cover;border-radius:6px}
+@media(max-width:600px){.reservation-calendar{padding:12px}.calendar-grid{gap:3px}.reservation-filters{grid-template-columns:1fr}.calendar-grid>button{font-size:12px}}

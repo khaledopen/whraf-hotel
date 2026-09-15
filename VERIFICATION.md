@@ -1,5 +1,15 @@
 # Vérification — 15 septembre 2026
 
+## Administration : filtres, calendrier et upload
+
+Recherche serveur par nom, e-mail, téléphone ou numéro, filtre de statut et période de séjour. Le calendrier utilise les résultats de recherche et sélectionne les nuits occupées (arrivée incluse, départ exclu). Les filtres sont conservés pendant la consultation et l’enregistrement d’une demande. Tous les résultats correspondants sont recherchés, au-delà de l’ancienne limite des 1 000 demandes.
+
+Upload JPEG, PNG et WebP (4 Mo maximum) directement dans l’éditeur de chambre et la photothèque, avec aperçu et sélection automatique pour la chambre. La photo est créée en brouillon : enregistrer la chambre puis vérifier et publier la photo dans Photographies. Aucun champ URL d’image à renseigner.
+
+Les nouvelles images sont décodées, redimensionnées et converties en WebP, puis stockées dans PostgreSQL (migration 004_uploaded_images.sql, appliquée en local). Exécuter également npm run db:migrate avec la base cible avant une mise en production de cette version. Les anciens uploads sur disque restent lisibles sur leur serveur d’origine. Les nouveaux fichiers sont servis par /api/images/ et survivent au redémarrage des fonctions Vercel.
+
+20 tests réussis, dont recherche et bornes de séjour, date invalide, tentative d’injection SQL, upload protégé, rejet d’un faux JPEG et lecture de la photo après recréation du serveur. Aucun e-mail réel envoyé par ces tests.
+
 ## Réservations et PostgreSQL
 
 18 tests réussis lors de la vérification du parcours PostgreSQL : soumissions simultanées, idempotence, validation, transactions, sessions, confirmation, annulation, reprise des notifications après panne et absence de configuration SMTP. Les tests d’intégration utilisent un schéma temporaire isolé et un transport e-mail simulé.

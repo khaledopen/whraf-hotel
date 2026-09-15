@@ -66,7 +66,7 @@ function badge(color, text) {
   return `<span style="display:inline-block;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:.5px;background:${color};color:#fff;">${h(text)}</span>`;
 }
 
-/* ── Client confirmation emails (per type) ────────────── */
+
 function buildReservationConfirmationHtml(data, roomName) {
   const guests = `${data.adults} adulte${data.adults>1?'s':''}`+(data.children?`, ${data.children} enfant${data.children>1?'s':''}`:'');
   return htmlShell(
