@@ -19,6 +19,7 @@ const requestTables={reservations:'reservation_requests',events:'event_requests'
 const safeEqual=(a,b)=>typeof a==='string'&&typeof b==='string'&&Buffer.byteLength(a)===Buffer.byteLength(b)&&timingSafeEqual(Buffer.from(a),Buffer.from(b));
 export function createApp({database=db,sessionStore,transport}={}){
  const app=express();const production=process.env.NODE_ENV==='production';
+ app.use((req,_res,next)=>{if(req.url.startsWith('/content')||req.url.startsWith('/health')||req.url.startsWith('/auth')||req.url.startsWith('/reservations')||req.url.startsWith('/events')||req.url.startsWith('/contacts')||req.url.startsWith('/admin'))req.url='/api'+req.url;next();});
  if(!process.env.SESSION_SECRET||process.env.SESSION_SECRET.length<32||process.env.SESSION_SECRET.startsWith('replace-'))throw Error('Configurez SESSION_SECRET avec au moins 32 caractères aléatoires.');
  if(production&&!sessionStore)throw Error('Un magasin de sessions persistant est requis en production.');
  if(production)app.set('trust proxy',1);
