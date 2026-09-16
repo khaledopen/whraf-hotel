@@ -85,6 +85,19 @@ a { color: inherit; text-decoration: none; transition: color 0.3s ease; }
   100% { transform: scale(1.06); }
 }
 
+@keyframes fieldShake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-5px); }
+  40%       { transform: translateX(5px); }
+  60%       { transform: translateX(-3px); }
+  80%       { transform: translateX(3px); }
+}
+
+@keyframes errorFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* Base Utility Classes for Animations */
 .animate-fade-up {
   animation: fadeInUp 0.8s var(--ease-out) forwards;
@@ -898,6 +911,16 @@ label {
   display: block;
   font-size: .8rem;
   font-weight: 500;
+  /* Espace réservé en bas = hauteur champ erreur (~22px) pour éviter le layout shift */
+  margin-bottom: 6px;
+  padding-bottom: 22px;
+  position: relative;
+}
+
+/* Espace naturel entre labels sans erreur */
+.request-form label:not(:has(.field-error)),
+.admin-editor label:not(:has(.field-error)) {
+  padding-bottom: 0;
   margin-bottom: 22px;
 }
 
@@ -939,8 +962,23 @@ textarea { resize: vertical; }
 
 .checkbox a { text-decoration: underline; }
 .request-form > small { display: block; font-size: .72rem; margin-top: 16px; line-height: 1.6; }
-.field-error { color: #a32929; font-size: .8rem; line-height: 1.6; display: block; margin-top: 6px; }
-[aria-invalid=true] { border-color: #a32929; }
+
+/* Message d'erreur : apparition douce sans layout shift */
+.field-error {
+  color: #a32929;
+  font-size: .8rem;
+  line-height: 1.6;
+  display: block;
+  margin-top: 6px;
+  animation: errorFadeIn 0.25s ease forwards;
+}
+
+/* Champ invalide : bordure rouge + légère animation shake (une seule fois) */
+[aria-invalid=true] {
+  border-color: #a32929;
+  box-shadow: 0 0 0 3px rgba(163, 41, 41, 0.12);
+  animation: fieldShake 0.35s ease;
+}
 
 .success {
   padding: 50px;
