@@ -17,7 +17,7 @@ export function refreshPhotos(data){
     const replacement=match&&replacements[match[1]];
     if(!replacement)return m;
     const [name,category,alt]=replacement;
-    return {...m,url:`/photos/wharf-${name}-1536.webp`,category,alt:`${alt} — photographie retouchée`,retouched:true};
+    return {...m,url:`/photos/wharf-${name}-1536.webp`,category,alt,retouched:true};
   };
   return {...data,media:data.media.map(convert),rooms:data.rooms.map(r=>({...r,media:r.media.map(convert).sort((a,b)=>Number(b.category==='Chambres')-Number(a.category==='Chambres'))}))};
 }
