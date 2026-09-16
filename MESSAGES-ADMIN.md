@@ -1,13 +1,19 @@
-# Traitement des messages de contact
+# Messages et téléchargements
 
-1. Un message reçu depuis Contact apparaît comme **Nouveau**.
-2. Ouvrir le message et choisir **En cours** pendant son traitement.
-3. **Répondre avec ma messagerie** ouvre l’application de messagerie avec le destinataire et le sujet. Rédiger et envoyer la réponse dans cette application.
-4. Revenir dans l’administration, choisir **Répondu**, puis enregistrer.
-5. Choisir **Archivé** pour conserver un message traité. Il reste consultable et peut être remis en cours.
+## Répondre à un client
 
-Les notes internes restent privées. Le changement de statut ne produit aucun e-mail au visiteur. Le suivi des e-mails concerne la notification adressée à l’hôtel, et non la réponse rédigée dans votre messagerie.
+1. Ouvrir Messages. Rechercher par nom, e-mail, sujet, contenu ou numéro et filtrer par statut.
+2. Choisir « Lire et répondre ».
+3. Rédiger dans « Votre réponse par e-mail », puis cliquer sur « Envoyer la réponse par e-mail ».
+4. L’historique affiche la réponse enregistrée et son état d’envoi. Le statut devient « Répondu » après acceptation par le serveur SMTP.
+5. En cas d’échec, consulter la cause et utiliser « Réessayer l’envoi ». Une réponse déjà envoyée ne peut pas être renvoyée avec ce bouton.
 
-La migration 006 adapte les anciens statuts sans supprimer de message : « confirmed » devient « processing » (aucune réponse n’était garantie), « declined » et « cancelled » deviennent « archived ». Les statuts des réservations et événements restent inchangés.
+Les notes internes ne sont jamais incluses dans la réponse. Les réponses et tentatives sont conservées dans PostgreSQL. Un double clic ou une reprise après coupure utilise la même clé d’envoi pour éviter de créer deux réponses. SMTP ne garantit pas une livraison exactement une fois si le serveur accepte le message juste avant une interruption.
 
-Exécuter `npm run db:migrate` sur la base de destination avant d’utiliser cette version. Migration appliquée à la base configurée lors de cette intervention.
+Le serveur local traite automatiquement les envois en attente. Sur Vercel, la réponse demandée est traitée avant la fin de la requête ; le bouton de relance permet de reprendre un échec. L’acceptation SMTP ne prouve pas la réception dans la boîte principale.
+
+## PDF et Excel des réservations
+
+Dans Réservations, appliquer les filtres ou sélectionner un jour dans le calendrier, puis choisir « Télécharger en PDF » ou « Télécharger en Excel ». Les exports contiennent exactement les résultats affichés, avec un rappel des filtres, les coordonnées, dates, voyageurs et statuts. Le PDF est paginé ; le fichier Excel est un vrai classeur .xlsx avec filtres de colonnes. Les notes internes ne sont pas exportées.
+
+La migration 007_contact_replies.sql doit être appliquée via `npm run db:migrate` sur la base cible. Elle ajoute l’historique des réponses et préserve les messages existants.

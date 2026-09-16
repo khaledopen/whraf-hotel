@@ -5,7 +5,7 @@ import { createNotificationWorker } from '../../backend/src/notification-worker.
 
 const sessionStore = new PostgreSQLSessionStore(db);
 const worker = createNotificationWorker({ database: db });
-const app = createApp({ sessionStore, drainNotifications: () => worker.drain() });
+const app = createApp({ sessionStore, drainNotifications: () => worker.drain(), deliverReply: id => worker.processReply(id) });
 
 export default function handler(req, res) {
   if (req.url && !req.url.startsWith('/api')) {

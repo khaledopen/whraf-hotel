@@ -1,4 +1,5 @@
 ﻿import express from 'express';
+import {registerContactReplyRoutes} from './contact-replies.js';
 import session from 'express-session';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -17,7 +18,7 @@ import {submitRequest,updateRequest,retryNotification} from './requests.js';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const requestTables={reservations:'reservation_requests',events:'event_requests',contacts:'contact_messages'};
 const safeEqual=(a,b)=>typeof a==='string'&&typeof b==='string'&&Buffer.byteLength(a)===Buffer.byteLength(b)&&timingSafeEqual(Buffer.from(a),Buffer.from(b));
-export function createApp({database=db,sessionStore,transport,drainNotifications}={}){
+export function createApp({database=db,sessionStore,transport,drainNotifications,deliverReply}={}){
  const app=express();const production=process.env.NODE_ENV==='production';
  app.use((req,_res,next)=>{if(req.url.startsWith('/content')||req.url.startsWith('/health')||req.url.startsWith('/auth')||req.url.startsWith('/reservations')||req.url.startsWith('/events')||req.url.startsWith('/contacts')||req.url.startsWith('/admin')||req.url.startsWith('/images'))req.url='/api'+req.url;next();});
  if(!process.env.SESSION_SECRET||process.env.SESSION_SECRET.length<32||process.env.SESSION_SECRET.startsWith('replace-'))throw Error('Configurez SESSION_SECRET avec au moins 32 caractères aléatoires.');
@@ -60,14 +61,21 @@ export function createApp({database=db,sessionStore,transport,drainNotifications
  });
  app.post('/api/auth/logout',requireAdmin,csrf,(req,res,next)=>req.session.destroy(e=>{if(e)return next(e);res.clearCookie('wharf.sid');res.json({ok:true});}));
  app.use('/api/admin',requireAdmin,(req,res,next)=>{if(['GET','HEAD'].includes(req.method))return next();csrf(req,res,next);});
+ registerContactReplyRoutes(app,database,deliverReply);
  app.get('/api/admin/mail-status',(_req,res)=>res.json(smtpConfiguration()));
  app.post('/api/admin/mail-verify',async(_req,res)=>{const config=smtpConfiguration();if(!config.configured)return res.status(422).json({message:'Configuration SMTP incomplète.',missing:config.missing});const smtp=transport||createMailTransport();try{await smtp.verify();res.json({ok:true,message:'Connexion SMTP validée. Aucun e-mail de test envoyé.'});}catch(e){res.status(502).json({message:mailError(e)});}finally{if(!transport)smtp?.close();}});
  app.get('/api/admin/dashboard',async(_req,res)=>{const counts={};for(const [key,table] of Object.entries(requestTables)){const [rows]=await database.query(`SELECT COUNT(*) AS total, COUNT(CASE WHEN status='pending' THEN 1 END) AS pending, (SELECT COUNT(*) FROM notification_jobs WHERE request_type=$1 AND state IN ('failed','unconfigured')) AS notification_failures FROM ${table}`,[key]);counts[key]=rows[0];}res.json(counts);});
  for(const [key,table] of Object.entries(requestTables)){
  app.get(`/api/admin/${key}`,async(req,res)=>{
-   const params=[key],clauses=[];if(key==='reservations'){const {q,status,from,to}=req.query;const add=(sql,value)=>{params.push(value);clauses.push(sql.replaceAll('?', String.fromCharCode(36)+params.length));};if(q){if(typeof q!=='string'||q.length>200)return res.status(400).json({message:'Recherche invalide.'});add("(r.name ILIKE ? OR r.email ILIKE ? OR r.phone ILIKE ? OR r.id::text ILIKE ?)",'%'+q+'%');}if(status){if(!['pending','processing','confirmed','declined','cancelled'].includes(status))return res.status(400).json({message:'Statut invalide.'});add('r.status=?',status);}for(const value of [from,to])if(value&&(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value)||Number.isNaN(Date.parse(value))||new Date(value).toISOString().slice(0,10)!==value))return res.status(400).json({message:'Date invalide.'});if(from&&to&&from>to)return res.status(400).json({message:'Période invalide.'});if(from)add('r.departure>?',from);if(to)add('r.arrival<=?',to);}
+   const params=[key],clauses=[];
+   if(key==='contacts'){
+     const {q,status}=req.query;
+     if(q){if(typeof q!=='string'||q.length>200)return res.status(400).json({message:'Recherche invalide.'});params.push('%'+q+'%');clauses.push("(r.name ILIKE $2 OR r.email ILIKE $2 OR r.subject ILIKE $2 OR r.message ILIKE $2 OR r.id::text ILIKE $2)");}
+     if(status){if(!['pending','processing','replied','archived'].includes(status))return res.status(400).json({message:'Statut invalide.'});params.push(status);clauses.push('r.status=$'+params.length);}
+   }
+   if(key==='reservations'){const {q,status,from,to}=req.query;const add=(sql,value)=>{params.push(value);clauses.push(sql.replaceAll('?', String.fromCharCode(36)+params.length));};if(q){if(typeof q!=='string'||q.length>200)return res.status(400).json({message:'Recherche invalide.'});add("(r.name ILIKE ? OR r.email ILIKE ? OR r.phone ILIKE ? OR r.id::text ILIKE ?)",'%'+q+'%');}if(status){if(!['pending','processing','confirmed','declined','cancelled'].includes(status))return res.status(400).json({message:'Statut invalide.'});add('r.status=?',status);}for(const value of [from,to])if(value&&(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value)||Number.isNaN(Date.parse(value))||new Date(value).toISOString().slice(0,10)!==value))return res.status(400).json({message:'Date invalide.'});if(from&&to&&from>to)return res.status(400).json({message:'Période invalide.'});if(from)add('r.departure>?',from);if(to)add('r.arrival<=?',to);}
 
-   const [rows]=await database.query(`SELECT r.*,COALESCE((SELECT jsonb_agg(jsonb_build_object('kind',n.kind,'state',n.state,'attempts',n.attempts,'last_error',n.last_error,'sent_at',n.sent_at,'next_attempt_at',n.next_attempt_at) ORDER BY n.id) FROM notification_jobs n WHERE n.request_type=$1 AND n.request_id=r.id),'[]'::jsonb) AS notifications FROM ${table} r ${clauses.length?'WHERE '+clauses.join(' AND '):''} ORDER BY r.created_at DESC ${key==='reservations'?'':'LIMIT 1000'}`,params);res.json(rows);
+   const [rows]=await database.query(`SELECT r.*,COALESCE((SELECT jsonb_agg(jsonb_build_object('kind',n.kind,'state',n.state,'attempts',n.attempts,'last_error',n.last_error,'sent_at',n.sent_at,'next_attempt_at',n.next_attempt_at) ORDER BY n.id) FROM notification_jobs n WHERE n.request_type=$1 AND n.request_id=r.id AND n.kind<>'reply'),'[]'::jsonb) AS notifications FROM ${table} r ${clauses.length?'WHERE '+clauses.join(' AND '):''} ORDER BY r.created_at DESC ${['reservations','contacts'].includes(key)?'':'LIMIT 1000'}`,params);res.json(rows);
  });
  app.put(`/api/admin/${key}/:id`,async(req,res)=>{await updateRequest(database,key,req.params.id,validate(key==='contacts'?contactUpdate:requestUpdate,req.body));res.json({ok:true});});
  app.post(`/api/admin/${key}/:id/notifications/:kind/retry`,async(req,res)=>{await retryNotification(database,key,req.params.id,req.params.kind);res.json({ok:true,message:'E-mail remis en attente.'});});

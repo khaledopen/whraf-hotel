@@ -1224,3 +1224,7 @@ textarea { resize: vertical; }
 .admin-photo-preview {width:100%;max-width:500px;height:280px;object-fit:contain;background:#edf2f3;border-radius:12px}
 .admin-photo-thumb {width:90px;height:65px;object-fit:cover;border-radius:6px}
 @media(max-width:600px){.reservation-calendar{padding:12px}.calendar-grid{gap:3px}.reservation-filters{grid-template-columns:1fr}.calendar-grid>button{font-size:12px}}
+.contact-replies {padding:24px;margin:24px 0;background:#f2f7f8;border:1px solid #d8e6e9;border-radius:14px}
+.reply-history {padding:16px;margin:12px 0;background:white;border:1px solid #d8e6e9;border-radius:10px;overflow-wrap:anywhere}
+.reply-history small {display:block;margin:8px 0}
+.admin-editor dd {white-space:pre-wrap;overflow-wrap:anywhere}

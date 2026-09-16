@@ -176,6 +176,14 @@ function buildReceptionHtml(type, data, roomName) {
 
 /* ── Main buildMessage function ───────────────────────── */
 export async function buildMessage(job,database,env=process.env) {
+  if(job.kind==='reply'){
+    if(job.request_type!=='contacts')return null;
+    const [rows]=await database.query('SELECT * FROM contact_replies WHERE id=$1',[job.request_id]);
+    const reply=rows[0];if(!reply)return null;
+    return {from:env.SMTP_FROM,to:reply.recipient,subject:reply.subject,text:reply.body,
+      html:htmlShell('Réponse du Wharf Hôtel','Suite à votre message',`<div style="white-space:pre-wrap;line-height:1.7">${h(reply.body)}</div>`),
+      messageId:`<wharf-reply-${reply.id}-${job.id}@notifications.wharf.local>`};
+  }
   const table=requestTables[job.request_type];
   if(!table) throw Error('Type de demande inconnu.');
   const [rows]=await database.query(`SELECT * FROM ${table} WHERE id=$1`,[job.request_id]);

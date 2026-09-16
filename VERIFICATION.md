@@ -1,5 +1,11 @@
 # Vérification — 15 septembre 2026
 
+## Ajout du 16 septembre : réponses e-mail et exports
+
+24 tests réussis avec SMTP simulé et schéma PostgreSQL isolé. Couverture : recherche des messages, protection de l’accès, validation des réponses, double soumission simultanée, échec SMTP, relance, statut Répondu après acceptation, contenu HTML échappé et notes privées exclues. Exports testés : lecture du classeur Excel, coordonnées conservées comme texte, PDF avec plusieurs pages et contenu complet. Compilation de production réussie ; bibliothèques d’export chargées à la demande.
+
+Contrôle dans une administration locale avec données fictives : rédaction et envoi simulé, historique visible et passage automatique à Répondu. Migration 007 appliquée à la base configurée. Aucun e-mail réel envoyé pendant les tests.
+
 ## Administration : filtres, calendrier et upload
 
 Recherche serveur par nom, e-mail, téléphone ou numéro, filtre de statut et période de séjour. Le calendrier utilise les résultats de recherche et sélectionne les nuits occupées (arrivée incluse, départ exclu). Les filtres sont conservés pendant la consultation et l’enregistrement d’une demande. Tous les résultats correspondants sont recherchés, au-delà de l’ancienne limite des 1 000 demandes.

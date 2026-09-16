@@ -153,6 +153,33 @@ test('PostgreSQL réel : réservations, administration et reprise SMTP (schéma 
       await worker.processOne();await worker.stop();assert.equal(mail.length,1);
       assert.equal((await database.query("SELECT state FROM notification_jobs WHERE request_type='contacts'"))[0][0].state,'sent');
     });
+    await t.test('réponse directe : recherche, idempotence, échec, relance et statut automatique',async()=>{
+      const contact=(await agent.get('/api/admin/contacts').query({q:'workflow@example.invalid',status:'pending'})).body[0];
+      assert.ok(contact);
+      assert.equal((await agent.get('/api/admin/contacts').query({q:"' OR 1=1 --"})).body.length,0);
+      const url='/api/admin/contacts/'+contact.id+'/replies',key=randomUUID(),body={body:'Bonjour <b>client</b>, voici notre réponse.'};
+      assert.equal((await request(app).post(url).send(body)).status,401);
+      assert.equal((await agent.post(url).send(body)).status,403);
+      assert.equal((await agent.post(url).set('X-CSRF-Token',csrf).set('Idempotency-Key',randomUUID()).send({body:' '})).status,422);
+      const rs=await Promise.all([1,2].map(()=>agent.post(url).set('X-CSRF-Token',csrf).set('Idempotency-Key',key).send(body)));
+      assert.deepEqual(rs.map(r=>r.status).sort(),[200,202]);assert.equal(rs[0].body.id,rs[1].body.id);
+      const replyId=rs[0].body.id;
+      assert.equal((await agent.post(url).set('X-CSRF-Token',csrf).set('Idempotency-Key',key).send({body:'Autre réponse'})).status,409);
+      let history=(await agent.get(url)).body;assert.equal(history.length,1);assert.equal(history[0].state,'pending');
+      const failed=createNotificationWorker({database,env,transport:{sendMail:async()=>{throw Object.assign(Error('secret'),{code:'EAUTH'});}}});
+      await failed.processReply(replyId);await failed.stop();
+      history=(await agent.get(url)).body;assert.equal(history[0].state,'failed');assert.equal(history[0].last_error,'Authentification SMTP refusée');
+      assert.equal((await agent.get('/api/admin/contacts').query({q:'workflow@example.invalid'})).body[0].status,'processing');
+      assert.equal((await agent.post(url+'/'+replyId+'/retry').set('X-CSRF-Token',csrf)).status,200);
+      const delivered=[];const worker=createNotificationWorker({database,env,transport:{sendMail:async m=>{delivered.push(m);return {accepted:[m.to]};}}});
+      await Promise.all([worker.processReply(replyId),worker.processReply(replyId)]);await worker.stop();
+      assert.equal(delivered.length,1);assert.equal(delivered[0].to,'workflow@example.invalid');assert.equal(delivered[0].text,body.body);
+      assert.ok(delivered[0].html.includes('&lt;b&gt;client&lt;/b&gt;'));assert.ok(!delivered[0].html.includes('Note privée'));
+      assert.equal((await agent.get(url)).body[0].state,'sent');
+      const row=(await agent.get('/api/admin/contacts').query({q:'workflow@example.invalid'})).body[0];
+      assert.equal(row.status,'replied');assert.ok(row.notifications.every(n=>n.kind!=='reply'));
+      assert.equal((await agent.post(url+'/'+replyId+'/retry').set('X-CSRF-Token',csrf)).status,409);
+    });
   } finally {
     store?.close();await testPool.end();
     // Only this test-created namespace is removed; never any hotel tables.
