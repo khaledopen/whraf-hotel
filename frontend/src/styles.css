@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -911,19 +911,10 @@ label {
   display: block;
   font-size: .8rem;
   font-weight: 500;
-  /* Espace réservé en bas = hauteur champ erreur (~22px) pour éviter le layout shift */
-  margin-bottom: 6px;
+  margin-bottom: 14px;
   padding-bottom: 22px;
   position: relative;
 }
-
-/* Espace naturel entre labels sans erreur */
-.request-form label:not(:has(.field-error)),
-.admin-editor label:not(:has(.field-error)) {
-  padding-bottom: 0;
-  margin-bottom: 22px;
-}
-
 input, select, textarea {
   width: 100%;
   margin-top: 9px;
@@ -963,21 +954,36 @@ textarea { resize: vertical; }
 .checkbox a { text-decoration: underline; }
 .request-form > small { display: block; font-size: .72rem; margin-top: 16px; line-height: 1.6; }
 
-/* Message d'erreur : apparition douce sans layout shift */
-.field-error {
+/* Message d'erreur : position absolue = zero layout shift */
+label .field-error {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  color: #a32929;
+  font-size: .78rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  animation: errorFadeIn 0.2s ease forwards;
+}
+
+/* Erreur hors label (ex: consent, failure global) */
+p.field-error, .checkbox ~ .field-error {
+  position: static;
   color: #a32929;
   font-size: .8rem;
   line-height: 1.6;
   display: block;
   margin-top: 6px;
-  animation: errorFadeIn 0.25s ease forwards;
+  animation: errorFadeIn 0.2s ease forwards;
 }
 
-/* Champ invalide : bordure rouge + légère animation shake (une seule fois) */
+/* Champ invalide : bordure rouge (pas d'animation shake = pas de tremblement) */
 [aria-invalid=true] {
-  border-color: #a32929;
-  box-shadow: 0 0 0 3px rgba(163, 41, 41, 0.12);
-  animation: fieldShake 0.35s ease;
+  border-color: #a32929 !important;
+  box-shadow: 0 0 0 3px rgba(163, 41, 41, 0.12) !important;
 }
 
 .success {
