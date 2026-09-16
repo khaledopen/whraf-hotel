@@ -18,4 +18,5 @@ export const schemas={
  hotel_settings:z.object({setting_key:z.enum(['address','phone','email','facebook','maps']),value:text(2000),validated:z.boolean()}).superRefine((v,c)=>{if(['facebook','maps'].includes(v.setting_key)){try{const u=new URL(v.value);if(u.protocol!=='https:')throw Error();}catch{c.addIssue({code:'custom',path:['value'],message:'URL HTTPS requise.'});}}})
 };
 export const requestUpdate=z.object({status:z.enum(['pending','processing','confirmed','declined','cancelled']),internal_notes:z.string().max(10000)});
+export const contactUpdate=z.object({status:z.enum(['pending','processing','replied','archived']),internal_notes:z.string().max(10000)});
 export function validate(schema,input){const r=schema.safeParse(input);if(!r.success){const e=new Error('Veuillez corriger les champs indiqués.');e.status=422;e.fields={};for(const i of r.error.issues)e.fields[i.path[0]||'form']=i.message;throw e;}return r.data;}

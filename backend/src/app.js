@@ -11,7 +11,7 @@ import sharp from 'sharp';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {db,demo,visibility} from './db.js';
-import {validate,reservation,event,contact,schemas,requestUpdate} from './validation.js';
+import {validate,reservation,event,contact,schemas,requestUpdate,contactUpdate} from './validation.js';
 import {smtpConfiguration,createMailTransport,mailError} from './notifications.js';
 import {submitRequest,updateRequest,retryNotification} from './requests.js';
 const root=fileURLToPath(new URL('../',import.meta.url));
@@ -69,7 +69,7 @@ export function createApp({database=db,sessionStore,transport,drainNotifications
 
    const [rows]=await database.query(`SELECT r.*,COALESCE((SELECT jsonb_agg(jsonb_build_object('kind',n.kind,'state',n.state,'attempts',n.attempts,'last_error',n.last_error,'sent_at',n.sent_at,'next_attempt_at',n.next_attempt_at) ORDER BY n.id) FROM notification_jobs n WHERE n.request_type=$1 AND n.request_id=r.id),'[]'::jsonb) AS notifications FROM ${table} r ${clauses.length?'WHERE '+clauses.join(' AND '):''} ORDER BY r.created_at DESC ${key==='reservations'?'':'LIMIT 1000'}`,params);res.json(rows);
  });
- app.put(`/api/admin/${key}/:id`,async(req,res)=>{await updateRequest(database,key,req.params.id,validate(requestUpdate,req.body));res.json({ok:true});});
+ app.put(`/api/admin/${key}/:id`,async(req,res)=>{await updateRequest(database,key,req.params.id,validate(key==='contacts'?contactUpdate:requestUpdate,req.body));res.json({ok:true});});
  app.post(`/api/admin/${key}/:id/notifications/:kind/retry`,async(req,res)=>{await retryNotification(database,key,req.params.id,req.params.kind);res.json({ok:true,message:'E-mail remis en attente.'});});
  }
  for(const [table,schema] of Object.entries(schemas)){

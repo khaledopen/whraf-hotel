@@ -122,6 +122,20 @@ test('PostgreSQL réel : réservations, administration et reprise SMTP (schéma 
       await updateRequest(database,'events',r.body.id,{status:'cancelled',internal_notes:''});
       const [jobs]=await database.query("SELECT * FROM notification_jobs WHERE request_type='events' AND kind='confirmation'");assert.equal(jobs[0].state,'cancelled');
     });
+    await t.test('messages : nouveau, en cours, répondu et archivé sans e-mail client',async()=>{
+      const result=await request(app).post('/api/contacts').send({name:'Contact test',email:'workflow@example.invalid',subject:'Question',message:'Bonjour',consent:true});
+      assert.equal(result.status,201);const id=result.body.id;
+      assert.equal((await database.query('SELECT status FROM contact_messages WHERE id=$1',[id]))[0][0].status,'pending');
+      for(const status of ['processing','replied','archived','pending']){
+        assert.equal((await agent.put('/api/admin/contacts/'+id).set('X-CSRF-Token',csrf).send({status,internal_notes:'Note privée'})).status,200);
+        const row=(await agent.get('/api/admin/contacts')).body.find(r=>r.id===id);
+        assert.equal(row.status,status);assert.equal(row.internal_notes,'Note privée');
+      }
+      assert.equal((await agent.put('/api/admin/contacts/'+id).set('X-CSRF-Token',csrf).send({status:'confirmed',internal_notes:''})).status,422);
+      assert.equal((await agent.put('/api/admin/reservations/'+reservationId).set('X-CSRF-Token',csrf).send({status:'replied',internal_notes:''})).status,422);
+      const jobs=(await database.query("SELECT kind FROM notification_jobs WHERE request_type='contacts' AND request_id=$1",[id]))[0];
+      assert.deepEqual(jobs.map(j=>j.kind),['reception']);
+    });
     await t.test('absence de configuration SMTP visible et demande conservée',async()=>{
       const r=await request(app).post('/api/contacts').send({name:'Test',email:'contact@example.invalid',subject:'Test',message:'Test',consent:true});assert.equal(r.status,201);
       const worker=createNotificationWorker({database,env,transport:null});await worker.drain();await worker.stop();
