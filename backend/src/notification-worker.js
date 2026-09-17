@@ -41,13 +41,17 @@ export function createNotificationWorker({database,transport=createMailTransport
     } catch(e) {await conn.rollback();throw e;} finally {conn.release();}
     return true;
   }
-  async function drain() {
+  async function drain(limit=10) {
     if(active || stopped) return active;
-    active=(async()=>{for(let n=0;n<10&&!stopped;n++) if(!await processOne()) break;})();
+    active=(async()=>{for(let n=0;n<limit&&!stopped;n++) if(!await processOne()) break;})();
     try {await active;} finally {active=null;}
   }
   return {
     processOne,drain,
+    async processRequest(type,id,kind){
+      const [jobs]=await database.query('SELECT id FROM notification_jobs WHERE request_type=$1 AND request_id=$2 AND kind=$3',[type,id,kind]);
+      return jobs.length?processOne(jobs[0].id):false;
+    },
     async processReply(replyId){
       const [jobs]=await database.query("SELECT id FROM notification_jobs WHERE request_type='contacts' AND kind='reply' AND request_id=$1",[replyId]);
       if(jobs.length)return processOne(jobs[0].id);

@@ -180,6 +180,37 @@ test('PostgreSQL réel : réservations, administration et reprise SMTP (schéma 
       assert.equal(row.status,'replied');assert.ok(row.notifications.every(n=>n.kind!=='reply'));
       assert.equal((await agent.post(url+'/'+replyId+'/retry').set('X-CSRF-Token',csrf)).status,409);
     });
+    await t.test('Vercel : réception, confirmation et relance terminées avant la réponse HTTP',async()=>{
+      const sent=[];
+      const worker=createNotificationWorker({database,env,transport:{sendMail:async m=>{await new Promise(r=>setTimeout(r,20));sent.push(m);return {accepted:[m.to]};}}});
+      const inline=createApp({database,sessionStore:store,deliverNotification:(type,id,kind)=>worker.processRequest(type,id,kind),drainNotifications:()=>worker.drain(1)});
+      const a=request.agent(inline);
+      const session=await a.get('/api/auth/session');
+      const login=await a.post('/api/auth/login').set('X-CSRF-Token',session.body.csrf).send({email:'admin@example.invalid',password:'test-password-private'});
+      const token=login.body.csrf;
+      const created=await a.post('/api/reservations').set('Idempotency-Key',randomUUID()).send({...valid,room_type_id:null});
+      assert.equal(created.status,201);assert.equal(sent.length,1);
+      const id=created.body.id;
+      const confirmed=await a.put('/api/admin/reservations/'+id).set('X-CSRF-Token',token).send({status:'confirmed',internal_notes:''});
+      assert.equal(confirmed.status,200);assert.equal(sent.length,2);
+      await a.put('/api/admin/reservations/'+id).set('X-CSRF-Token',token).send({status:'confirmed',internal_notes:''});
+      assert.equal(sent.length,2);
+      await database.execute("UPDATE notification_jobs SET state='failed' WHERE request_type='reservations' AND request_id=$1 AND kind='confirmation'",[id]);
+      assert.equal((await a.post(`/api/admin/reservations/${id}/notifications/confirmation/retry`).set('X-CSRF-Token',token)).status,200);
+      assert.equal(sent.length,3);
+      assert.equal((await request(inline).post('/api/admin/mail-process')).status,401);
+      assert.equal((await a.post('/api/admin/mail-process')).status,403);
+      assert.equal((await a.post('/api/admin/mail-process').set('X-CSRF-Token',token)).status,200);
+      const previous=process.env.CRON_SECRET;process.env.CRON_SECRET='test-cron-secret';
+      try{assert.equal((await request(inline).get('/api/notifications/cron')).status,401);assert.equal((await request(inline).get('/api/notifications/cron').set('Authorization','Bearer test-cron-secret')).status,200);}finally{if(previous===undefined)delete process.env.CRON_SECRET;else process.env.CRON_SECRET=previous;}
+      await worker.stop();
+    });
+    await t.test('une erreur du déclencheur mail ne fait pas perdre la demande enregistrée',async()=>{
+      const inline=createApp({database,sessionStore:store,deliverNotification:async()=>{throw Error('worker unavailable');}});
+      const r=await request(inline).post('/api/contacts').set('Idempotency-Key',randomUUID()).send({name:'Test',email:'recovery@example.invalid',subject:'Recovery',message:'Test',consent:true});
+      assert.equal(r.status,201);
+      assert.equal((await database.query("SELECT state FROM notification_jobs WHERE request_type='contacts' AND request_id=$1 AND kind='reception'",[r.body.id]))[0][0].state,'pending');
+    });
   } finally {
     store?.close();await testPool.end();
     // Only this test-created namespace is removed; never any hotel tables.

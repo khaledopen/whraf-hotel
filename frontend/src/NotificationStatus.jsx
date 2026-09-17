@@ -1,6 +1,16 @@
 import React,{useState,useEffect} from 'react';
 import {api} from './api';
 const labels={pending:'En attente d’envoi',sending:'Envoi en cours',sent:'Remis au serveur mail',failed:'Échec d’envoi',unconfigured:'Configuration SMTP manquante',cancelled:'Envoi annulé'};
+export function MailQueue(){
+ const [queue,setQueue]=useState([]),[error,setError]=useState('');
+ useEffect(()=>{let active=true,timer;
+  async function tick(){try{if(!document.hidden){const result=await api('/admin/mail-process',{method:'POST'});if(active){setQueue(result.queue);setError('');}}}catch(e){if(active)setError(e.message);}finally{if(active)timer=setTimeout(tick,30000);}}
+  tick();return()=>{active=false;clearTimeout(timer);};
+ },[]);
+ const total=queue.reduce((n,r)=>n+r.total,0),failed=queue.filter(r=>['failed','unconfigured'].includes(r.state)).reduce((n,r)=>n+r.total,0);
+ if(!total&&!error)return null;
+ return <div className="notice" role={failed||error?'alert':'status'}><strong>Suivi des e-mails</strong>{total>0&&<p>{total} e-mail(s) à envoyer{failed?`, dont ${failed} en échec`:''}. La file est vérifiée automatiquement pendant que l’administration reste ouverte. Consultez la demande concernée pour connaître l’erreur et relancer.</p>}{error&&<p className="field-error">La reprise des e-mails est indisponible : {error}</p>}</div>;
+}
 export default function NotificationStatus({row,section,onRefresh}) {
   const [busy,setBusy]=useState(false),[message,setMessage]=useState('');
   const jobs=row.notifications||[];

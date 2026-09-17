@@ -18,7 +18,8 @@ import {submitRequest,updateRequest,retryNotification} from './requests.js';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const requestTables={reservations:'reservation_requests',events:'event_requests',contacts:'contact_messages'};
 const safeEqual=(a,b)=>typeof a==='string'&&typeof b==='string'&&Buffer.byteLength(a)===Buffer.byteLength(b)&&timingSafeEqual(Buffer.from(a),Buffer.from(b));
-export function createApp({database=db,sessionStore,transport,drainNotifications,deliverReply}={}){
+export function createApp({database=db,sessionStore,transport,drainNotifications,deliverReply,deliverNotification}={}){
+ const deliver=async(type,id,kind)=>{if(deliverNotification)try{await deliverNotification(type,id,kind);}catch{console.error('Notification enregistrée : envoi différé.');}};
  const app=express();const production=process.env.NODE_ENV==='production';
  app.use((req,_res,next)=>{if(req.url.startsWith('/content')||req.url.startsWith('/health')||req.url.startsWith('/auth')||req.url.startsWith('/reservations')||req.url.startsWith('/events')||req.url.startsWith('/contacts')||req.url.startsWith('/admin')||req.url.startsWith('/images'))req.url='/api'+req.url;next();});
  if(!process.env.SESSION_SECRET||process.env.SESSION_SECRET.length<32||process.env.SESSION_SECRET.startsWith('replace-'))throw Error('Configurez SESSION_SECRET avec au moins 32 caractères aléatoires.');
@@ -33,6 +34,12 @@ export function createApp({database=db,sessionStore,transport,drainNotifications
  const requireAdmin=(req,res,next)=>req.session.adminId?next():res.status(401).json({message:'Connexion requise.'});
  const csrf=(req,res,next)=>{if(!safeEqual(req.get('X-CSRF-Token'),req.session.csrf))return res.status(403).json({message:'Session expirée. Rechargez la page.'});next();};
  app.get('/api/health',async(_req,res)=>{try{await database.query('SELECT 1');res.json({ok:true});}catch{res.status(503).json({message:'Base PostgreSQL indisponible.'});}});
+ app.get('/api/notifications/cron',async(req,res)=>{
+   const secret=process.env.CRON_SECRET;
+   if(!secret||!safeEqual(req.get('Authorization'),'Bearer '+secret))return res.sendStatus(401);
+   if(!drainNotifications)return res.sendStatus(503);
+   await drainNotifications();res.json({ok:true});
+ });
  app.get('/api/images/:name',async(req,res)=>{if(!/^[a-f0-9-]{36}\.webp$/.test(req.params.name))return res.sendStatus(404);const [rows]=await database.query('SELECT data FROM uploaded_images WHERE name=$1',[req.params.name]);if(!rows.length)return res.sendStatus(404);res.set('Cache-Control','public, max-age=31536000, immutable').type('image/webp').send(rows[0].data);});
  app.get('/api/content',async(_req,res)=>{
  const [rooms]=await database.query(`SELECT * FROM room_types WHERE ${visibility}`);
@@ -47,9 +54,8 @@ export function createApp({database=db,sessionStore,transport,drainNotifications
  app.post(`/api/${route}`,formLimit,async(req,res)=>{
  const data=validate(schema,req.body);
  const result=await submitRequest(database,route,data,req.get('Idempotency-Key'));
+ await deliver(route,result.id,'reception');
  res.status(result.replayed?200:201).json({id:result.id,message:route==='reservations'?'Votre demande a bien été reçue. L’hôtel vous contactera pour confirmer la disponibilité et les modalités de votre séjour.':'Votre demande a bien été reçue. L’hôtel vous contactera prochainement.'});
- // In serverless environments (Vercel), drain notification queue inline since no background worker runs.
- if(drainNotifications) drainNotifications().catch(e=>console.error('Notifications inline:',e?.message||e));
  });}
  app.get('/api/auth/session',(req,res)=>{req.session.csrf ||= randomBytes(32).toString('hex');res.json({authenticated:!!req.session.adminId,csrf:req.session.csrf});});
  app.post('/api/auth/login',rateLimit({windowMs:15*60*1000,limit:5,message:{message:'Trop de tentatives. Réessayez dans 15 minutes.'}}),csrf,async(req,res)=>{
@@ -62,6 +68,7 @@ export function createApp({database=db,sessionStore,transport,drainNotifications
  app.post('/api/auth/logout',requireAdmin,csrf,(req,res,next)=>req.session.destroy(e=>{if(e)return next(e);res.clearCookie('wharf.sid');res.json({ok:true});}));
  app.use('/api/admin',requireAdmin,(req,res,next)=>{if(['GET','HEAD'].includes(req.method))return next();csrf(req,res,next);});
  registerContactReplyRoutes(app,database,deliverReply);
+ app.post('/api/admin/mail-process',async(_req,res)=>{if(drainNotifications)await drainNotifications();const [rows]=await database.query("SELECT state,COUNT(*)::int AS total FROM notification_jobs WHERE state NOT IN ('sent','cancelled') GROUP BY state");res.json({queue:rows});});
  app.get('/api/admin/mail-status',(_req,res)=>res.json(smtpConfiguration()));
  app.post('/api/admin/mail-verify',async(_req,res)=>{const config=smtpConfiguration();if(!config.configured)return res.status(422).json({message:'Configuration SMTP incomplète.',missing:config.missing});const smtp=transport||createMailTransport();try{await smtp.verify();res.json({ok:true,message:'Connexion SMTP validée. Aucun e-mail de test envoyé.'});}catch(e){res.status(502).json({message:mailError(e)});}finally{if(!transport)smtp?.close();}});
  app.get('/api/admin/dashboard',async(_req,res)=>{const counts={};for(const [key,table] of Object.entries(requestTables)){const [rows]=await database.query(`SELECT COUNT(*) AS total, COUNT(CASE WHEN status='pending' THEN 1 END) AS pending, (SELECT COUNT(*) FROM notification_jobs WHERE request_type=$1 AND state IN ('failed','unconfigured')) AS notification_failures FROM ${table}`,[key]);counts[key]=rows[0];}res.json(counts);});
@@ -77,8 +84,8 @@ export function createApp({database=db,sessionStore,transport,drainNotifications
 
    const [rows]=await database.query(`SELECT r.*,COALESCE((SELECT jsonb_agg(jsonb_build_object('kind',n.kind,'state',n.state,'attempts',n.attempts,'last_error',n.last_error,'sent_at',n.sent_at,'next_attempt_at',n.next_attempt_at) ORDER BY n.id) FROM notification_jobs n WHERE n.request_type=$1 AND n.request_id=r.id AND n.kind<>'reply'),'[]'::jsonb) AS notifications FROM ${table} r ${clauses.length?'WHERE '+clauses.join(' AND '):''} ORDER BY r.created_at DESC ${['reservations','contacts'].includes(key)?'':'LIMIT 1000'}`,params);res.json(rows);
  });
- app.put(`/api/admin/${key}/:id`,async(req,res)=>{await updateRequest(database,key,req.params.id,validate(key==='contacts'?contactUpdate:requestUpdate,req.body));res.json({ok:true});});
- app.post(`/api/admin/${key}/:id/notifications/:kind/retry`,async(req,res)=>{await retryNotification(database,key,req.params.id,req.params.kind);res.json({ok:true,message:'E-mail remis en attente.'});});
+ app.put(`/api/admin/${key}/:id`,async(req,res)=>{await updateRequest(database,key,req.params.id,validate(key==='contacts'?contactUpdate:requestUpdate,req.body));if(req.body.status==='confirmed')await deliver(key,req.params.id,'confirmation');res.json({ok:true});});
+ app.post(`/api/admin/${key}/:id/notifications/:kind/retry`,async(req,res)=>{await retryNotification(database,key,req.params.id,req.params.kind);await deliver(key,req.params.id,req.params.kind);res.json({ok:true,message:'E-mail remis en attente.'});});
  }
  for(const [table,schema] of Object.entries(schemas)){
  app.get(`/api/admin/${table}`,async(_req,res)=>{const [rows]=await database.query(`SELECT * FROM ${table} ORDER BY id DESC`);if(table==='room_types'){const [a]=await database.query('SELECT * FROM room_type_amenities');const [m]=await database.query('SELECT * FROM room_type_media');for(const row of rows){row.amenity_ids=a.filter(x=>x.room_type_id===row.id).map(x=>x.amenity_id);row.media_ids=m.filter(x=>x.room_type_id===row.id).map(x=>x.media_id);}}res.json(rows);});

@@ -42,7 +42,7 @@ Le même diagnostic se trouve dans le tableau de bord administrateur. Il valide 
 ## Parcours de réservation
 
 1. Le visiteur envoie le formulaire. La demande, sa clé anti-doublon et le travail de notification sont enregistrés dans **une même transaction PostgreSQL**.
-2. Le site affiche le succès après cet enregistrement, sans attendre le SMTP. Ce succès ne confirme pas le séjour.
+2. Sur Vercel, le serveur attend une tentative d’envoi ciblée avant de répondre. Même si le SMTP échoue, la demande reste enregistrée et le site confirme sa réception ; ce succès ne confirme pas le séjour.
 3. Un traitement du backend relève les e-mails toutes les cinq secondes. La notification de réception est adressée à l’hôtel.
 4. Un administrateur choisit explicitement « Confirmée par l’hôtel » et enregistre. Cela met une confirmation client en attente pour les réservations et événements. Un message de contact ne reçoit jamais un faux récapitulatif de séjour.
 5. L’administration distingue notification à l’hôtel et confirmation au client : attente, envoi, remise au serveur mail, échec, configuration manquante ou annulation.
@@ -50,6 +50,10 @@ Le même diagnostic se trouve dans le tableau de bord administrateur. Il valide 
 Un délai réseau et une nouvelle tentative avec les mêmes données et la même clé ne créent pas une deuxième réservation. Les soumissions concurrentes de la même clé sont sérialisées. Modifier les informations après un délai d’attente correspond à une nouvelle demande ; en cas de doute, conserver les informations et réessayer.
 
 ## Échecs et reprises
+
+Sur Vercel, les réceptions, confirmations et relances sont traitées avant la fin de la requête HTTP (durée maximale configurée : 60 secondes). Aucun envoi n’est lancé après la réponse. L’administration ouverte reprend un travail de la file toutes les 30 secondes, après la fin du traitement précédent, et affiche une alerte globale pour les e-mails non envoyés. Les verrous PostgreSQL empêchent deux onglets de traiter simultanément le même travail.
+
+Pour reprendre les échecs même lorsque personne ne consulte l’administration, configurer un ordonnanceur qui appelle `GET /api/notifications/cron` avec l’en-tête `Authorization: Bearer <CRON_SECRET>`. Définir `CRON_SECRET` uniquement dans les variables serveur Vercel, puis redéployer. La route refuse tout appel sans ce secret. Une invocation traite un travail éligible, sans dépasser un lot de messages long ; prévoir une invocation par minute pour une reprise rapide. Le cron natif Vercel Hobby est limité à une fois par jour : utiliser un ordonnanceur compatible avec la fréquence souhaitée ou un worker permanent. Aucun ordonnanceur n’est activé par ce dépôt seul. Voir [la documentation Vercel](https://vercel.com/docs/cron-jobs/usage-and-pricing).
 
 - Un échec SMTP conserve la demande et un message d’erreur sans données personnelles.
 - Jusqu’à cinq tentatives sont effectuées, avec attente progressive (1, 2, 4 puis 8 minutes).
