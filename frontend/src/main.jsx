@@ -6,6 +6,7 @@ import {api} from './api';
 import Admin from './Admin';
 import HeroVideo from './HeroVideo';
 import './styles.css';
+import './admin-responsive.css';
 import {refreshPhotos,responsivePhoto} from './photos';
 const Content=createContext();
 const titles={'/':'Accueil','/hotel':'L’hôtel','/chambres':'Chambres','/restaurant':'Restaurant','/piscine-plage':'Piscine & plage','/evenements':'Événements','/galerie':'Galerie','/reservation':'Demande de réservation','/contact':'Contact','/mentions-legales':'Mentions légales','/confidentialite':'Confidentialité','/admin':'Administration'};

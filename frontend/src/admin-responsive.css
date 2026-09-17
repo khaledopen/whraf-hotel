@@ -1,0 +1,73 @@
+/* Scoped to the back office: public site layout stays independent. */
+.admin-shell {grid-template-columns:250px minmax(0,1fr)}
+.admin-shell > aside {position:sticky;top:0;align-self:start;height:100dvh;overflow-y:auto}
+.admin-mobile-navigation {display:none}
+.admin-main {width:100%;max-width:1600px}
+.admin-main :where(section,article,form,fieldset,label,dl,dd,.actions,.notice,.notification-item) {min-width:0}
+.admin-main :where(h1,h2,h3,p,small,strong,a,.notice,.field-error,.admin-choice-text) {overflow-wrap:anywhere}
+.admin-main :where(input,select,textarea) {max-width:100%;min-width:0}
+.admin-main fieldset {min-inline-size:0}
+.admin-main .section-heading {flex-wrap:wrap;gap:16px}
+.admin-main .section-heading h1 {margin-bottom:0}
+.admin-main .actions {flex-wrap:wrap}
+.admin-main button {min-height:44px;white-space:normal;text-align:center}
+.admin-shell nav button {text-align:left}
+.admin-list article > div:first-child {min-width:0;flex:1}
+.admin-list article > .actions {flex:0 1 auto}
+.admin-main .dashboard-cards {grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:16px}
+.admin-main .reservation-filters {grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))}
+.admin-main .reservation-filters label {margin:0;padding-bottom:0}
+.admin-main .reservation-filters button {margin-top:9px;min-height:48px}
+.admin-main .admin-editor {width:100%}
+.admin-main .admin-editor dl {grid-template-columns:minmax(100px,150px) minmax(0,1fr)}
+.admin-main .checkbox {align-items:center}
+.admin-main .checkbox input {flex:0 0 20px;width:20px;min-height:20px}
+.admin-main .admin-photo-thumb {flex:0 0 72px;width:72px;height:56px}
+.admin-choice-text {min-width:0;flex:1}
+.admin-main .admin-photo-preview {height:auto;max-height:320px}
+.admin-main .calendar-grid {min-width:0}
+.admin-main .calendar-grid > button {padding:8px 2px;min-height:58px}
+.admin-login {width:100%;min-width:0}
+.admin-login :where(input,button) {min-width:0;max-width:100%;white-space:normal}
+@media(max-width:1100px){
+ .admin-shell {grid-template-columns:210px minmax(0,1fr)}
+ .admin-main {padding:28px}
+ .admin-list article {flex-wrap:wrap}
+}
+@media(max-width:850px){
+ .admin-shell {display:block}
+ .admin-shell > aside {position:static;height:auto;overflow:visible;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px 16px;padding:20px}
+ .admin-shell > aside .brand {grid-column:1/-1}
+ .admin-shell > aside nav {display:none}
+ .admin-mobile-navigation {display:block;grid-column:1/-1;margin:0;padding:0;color:white}
+ .admin-mobile-navigation select {margin-top:6px;font-size:16px}
+ .admin-shell > aside > button {min-height:44px;justify-self:start}
+ .admin-shell > aside > a:last-child {align-self:center}
+ .admin-main {padding:24px}
+ .admin-main .admin-list article {flex-direction:row;align-items:center}
+ .admin-main .section-heading {margin-bottom:24px}
+}
+@media(max-width:600px){
+ .admin-main {padding:22px 14px}
+ .admin-main h1 {font-size:clamp(1.6rem,7vw,2rem)}
+ .admin-main h2 {font-size:1.35rem}
+ .admin-main :where(input,select,textarea),.admin-login :where(input,select,textarea) {font-size:16px;padding:12px 10px}
+ .admin-main input[type=file] {font-size:14px;width:100%;padding:10px 6px}
+ .admin-main :where(.admin-editor,.contact-replies,.notification-status,.reservation-calendar) {padding:14px}
+ .admin-main .admin-editor dl {grid-template-columns:minmax(0,1fr);gap:4px}
+ .admin-main .admin-editor dd {margin-bottom:12px}
+ .admin-main .admin-editor fieldset {padding:12px}
+ .admin-main .reservation-filters {grid-template-columns:minmax(0,1fr);gap:12px}
+ .admin-main .admin-list article {padding:16px;flex-direction:column;align-items:stretch;gap:14px}
+ .admin-main .actions {display:grid;grid-template-columns:minmax(0,1fr);width:100%;gap:10px}
+ .admin-main .actions > * {width:100%;min-width:0}
+ .admin-main :where(.notice,.notification-item,.contact-replies) > button {width:100%;padding:12px}
+ .admin-main .calendar-grid {gap:2px}
+ .admin-main .calendar-grid > button {font-size:12px;min-height:54px;border-width:1px}
+ .admin-main .calendar-legend {gap:8px 12px}
+ .admin-main .reply-history {padding:12px}
+ .admin-shell > aside .brand {font-size:1.3rem}
+ .admin-login {padding:16px;margin:20px auto}
+ .admin-login form {padding:20px}
+ .admin-login h1 {font-size:1.9rem}
+}
