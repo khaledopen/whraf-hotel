@@ -51,6 +51,12 @@ Un délai réseau et une nouvelle tentative avec les mêmes données et la même
 
 ## Échecs et reprises
 
+### Réglages de compilation Vercel
+
+Si **Root Directory** vaut `frontend`, la commande est `npm run build` et le dossier de sortie est `dist` (définis dans `frontend/vercel.json`). Activer **Include source files outside of the Root Directory in the Build Step**, car `frontend/api/index.js` importe le backend du dossier voisin. Ne pas utiliser `--prefix frontend` dans ce mode : cela cherche un dossier inexistant `frontend/frontend`.
+
+Si **Root Directory** est la racine du dépôt, conserver la configuration du `vercel.json` principal : `npm run build --prefix frontend` et `frontend/dist`.
+
 Sur Vercel, les réceptions, confirmations et relances sont traitées avant la fin de la requête HTTP (durée maximale configurée : 60 secondes). Aucun envoi n’est lancé après la réponse. L’administration ouverte reprend un travail de la file toutes les 30 secondes, après la fin du traitement précédent, et affiche une alerte globale pour les e-mails non envoyés. Les verrous PostgreSQL empêchent deux onglets de traiter simultanément le même travail.
 
 Pour reprendre les échecs même lorsque personne ne consulte l’administration, configurer un ordonnanceur qui appelle `GET /api/notifications/cron` avec l’en-tête `Authorization: Bearer <CRON_SECRET>`. Définir `CRON_SECRET` uniquement dans les variables serveur Vercel, puis redéployer. La route refuse tout appel sans ce secret. Une invocation traite un travail éligible, sans dépasser un lot de messages long ; prévoir une invocation par minute pour une reprise rapide. Le cron natif Vercel Hobby est limité à une fois par jour : utiliser un ordonnanceur compatible avec la fréquence souhaitée ou un worker permanent. Aucun ordonnanceur n’est activé par ce dépôt seul. Voir [la documentation Vercel](https://vercel.com/docs/cron-jobs/usage-and-pricing).
