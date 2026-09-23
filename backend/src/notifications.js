@@ -27,27 +27,27 @@ const formatDate=date=>/^\d{4}-\d{2}-\d{2}$/.test(String(date))?String(date).spl
 /* ── Shared HTML shell ─────────────────────────────────── */
 function htmlShell(title, preheader, bodyHtml) {
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${h(title)}</title></head>
-<body style="margin:0;padding:0;background:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:32px 0;">
+<title>${h(title)}</title><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><style>:root{color-scheme:light dark;supported-color-schemes:light dark}.mail-body a:not(.mail-button){color:inherit;text-decoration:underline}@media(max-width:480px){.mail-padding{padding:24px 16px!important}.mail-panel{padding:16px 12px!important}.mail-label,.mail-value{display:block!important;width:auto!important;padding:6px 8px!important;border-left:0!important;white-space:normal!important;overflow-wrap:anywhere}}@media(prefers-color-scheme:dark){.mail-page{background-color:#111827!important}.mail-card,.mail-body{background-color:#1f2937!important;color:#f3f4f6!important}.mail-header,.mail-footer,.mail-panel{background-color:#293548!important;border-color:#64748b!important}.mail-card p,.mail-card h1,.mail-card td,.mail-card strong,.mail-reply{color:#f3f4f6!important}.mail-card .mail-button{background-color:#b9e6f2!important;color:#102a43!important}}[data-ogsc] .mail-page{background-color:#111827!important}[data-ogsc] .mail-card,[data-ogsc] .mail-body{background-color:#1f2937!important;color:#f3f4f6!important}[data-ogsc] .mail-header,[data-ogsc] .mail-footer,[data-ogsc] .mail-panel{background-color:#293548!important;border-color:#64748b!important}[data-ogsc] .mail-card p,[data-ogsc] .mail-card h1,[data-ogsc] .mail-card td,[data-ogsc] .mail-card strong,[data-ogsc] .mail-reply{color:#f3f4f6!important}[data-ogsc] .mail-card .mail-button{background-color:#b9e6f2!important;color:#102a43!important}</style></head>
+<body class="mail-page" style="margin:0;padding:0;background:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
+<table class="mail-page" role="presentation" bgcolor="#f0f4f8" width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:32px 0;">
   <tr><td align="center">
     <span style="display:none;max-height:0;overflow:hidden;">${h(preheader)}</span>
-    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+    <table class="mail-card" role="presentation" bgcolor="#ffffff" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
       <!-- HEADER -->
-      <tr><td style="background:linear-gradient(135deg,#0b3c5d 0%,#1a6b8a 100%);padding:36px 40px;text-align:center;">
+      <tr><td class="mail-header mail-padding" bgcolor="#0b3c5d" style="background-color:#0b3c5d;padding:36px 40px;text-align:center;">
         <p style="margin:0 0 4px;font-size:11px;letter-spacing:3px;color:#a8d8ea;text-transform:uppercase;font-weight:600;">Grand-Bassam · Côte d'Ivoire</p>
         <h1 style="margin:0;font-size:28px;color:#ffffff;font-weight:700;letter-spacing:1px;">WHARF HÔTEL</h1>
         <div style="margin:16px auto 0;width:48px;height:2px;background:linear-gradient(90deg,#c9a84c,#f0d080);border-radius:1px;"></div>
       </td></tr>
       <!-- BODY -->
-      <tr><td style="padding:40px 40px 32px;">
+      <tr><td class="mail-body mail-padding" bgcolor="#ffffff" style="padding:40px 40px 32px;background-color:#ffffff;color:#1f2937;">
         ${bodyHtml}
       </td></tr>
       <!-- FOOTER -->
-      <tr><td style="background:#f8f9fa;border-top:1px solid #e8ecf0;padding:24px 40px;text-align:center;">
-        <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Boulevard Treich-Laplène, Quartier France, Grand-Bassam</p>
-        <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">📞 +225 27 21 30 15 33 &nbsp;·&nbsp; ✉️ lewharfhotel@gmail.com</p>
-        <p style="margin:0;font-size:11px;color:#9ca3af;">© ${new Date().getFullYear()} Wharf Hôtel · Tous droits réservés</p>
+      <tr><td class="mail-footer mail-padding" bgcolor="#f8f9fa" style="background-color:#f8f9fa;border-top:1px solid #e8ecf0;padding:24px 40px;text-align:center;">
+        <p style="margin:0 0 8px;font-size:13px;color:#4b5563;">Boulevard Treich-Laplène, Quartier France, Grand-Bassam</p>
+        <p style="margin:0 0 8px;font-size:13px;color:#4b5563;">📞 +225 27 21 30 15 33 &nbsp;·&nbsp; ✉️ lewharfhotel@gmail.com</p>
+        <p style="margin:0;font-size:11px;color:#4b5563;">© ${new Date().getFullYear()} Wharf Hôtel · Tous droits réservés</p>
       </td></tr>
     </table>
   </td></tr>
@@ -57,8 +57,8 @@ function htmlShell(title, preheader, bodyHtml) {
 
 function infoRow(label, value) {
   return `<tr>
-    <td style="padding:10px 16px;font-size:13px;color:#6b7280;font-weight:600;white-space:nowrap;vertical-align:top;">${h(label)}</td>
-    <td style="padding:10px 16px;font-size:14px;color:#1f2937;border-left:2px solid #e5e7eb;">${h(String(value??'—'))}</td>
+    <td class="mail-label" style="padding:10px 16px;font-size:13px;color:#4b5563;font-weight:600;white-space:nowrap;vertical-align:top;">${h(label)}</td>
+    <td class="mail-value" style="overflow-wrap:anywhere;word-break:break-word;padding:10px 16px;font-size:14px;color:#1f2937;border-left:2px solid #e5e7eb;">${h(String(value??'—'))}</td>
   </tr>`;
 }
 
@@ -77,7 +77,7 @@ function buildReservationConfirmationHtml(data, roomName) {
       Nous avons le plaisir de vous confirmer votre réservation au <strong>Wharf Hôtel</strong>.<br>
       Nous vous attendons avec impatience et ferons tout notre possible pour rendre votre séjour inoubliable. 🌊
     </p>
-    <div style="background:linear-gradient(135deg,#f0f9ff 0%,#e0f2fe 100%);border-left:4px solid #0b3c5d;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
+    <div class="mail-panel" style="background-color:#f1f5f9;color:#1f2937;border-left:4px solid #0b3c5d;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
       <p style="margin:0 0 12px;font-size:13px;font-weight:700;color:#0b3c5d;letter-spacing:1px;text-transform:uppercase;">🛏 Détails de votre séjour</p>
       <table cellpadding="0" cellspacing="0" style="width:100%;">
         ${infoRow('Numéro de réservation', `#${data.id}`)}
@@ -88,7 +88,7 @@ function buildReservationConfirmationHtml(data, roomName) {
         ${data.message ? infoRow('Votre message', data.message) : ''}
       </table>
     </div>
-    <div style="background:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:16px 20px;margin-bottom:28px;">
+    <div class="mail-panel" style="background-color:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:16px 20px;margin-bottom:28px;">
       <p style="margin:0;font-size:13px;color:#92400e;">
         ℹ️ <strong>Informations pratiques :</strong> Votre chambre sera disponible à partir de 14h le jour d'arrivée. Le départ est avant 12h sauf accord préalable.
       </p>
@@ -110,7 +110,7 @@ function buildEventConfirmationHtml(data) {
       Nous sommes ravis de vous confirmer l'organisation de votre événement au <strong>Wharf Hôtel</strong>.<br>
       Notre équipe se mobilisera pour faire de cette journée un moment exceptionnel. 🎉
     </p>
-    <div style="background:linear-gradient(135deg,#f5f3ff 0%,#ede9fe 100%);border-left:4px solid #7c3aed;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
+    <div class="mail-panel" style="background-color:#f1f5f9;color:#1f2937;border-left:4px solid #7c3aed;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
       <p style="margin:0 0 12px;font-size:13px;font-weight:700;color:#7c3aed;letter-spacing:1px;text-transform:uppercase;">🎪 Détails de votre événement</p>
       <table cellpadding="0" cellspacing="0" style="width:100%;">
         ${infoRow('Numéro de demande', `#${data.id}`)}
@@ -120,7 +120,7 @@ function buildEventConfirmationHtml(data) {
         ${data.message ? infoRow('Votre message', data.message) : ''}
       </table>
     </div>
-    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px 20px;margin-bottom:28px;">
+    <div class="mail-panel" style="background-color:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px 20px;margin-bottom:28px;">
       <p style="margin:0;font-size:13px;color:#166534;">
         ✅ <strong>Prochaine étape :</strong> Un membre de notre équipe vous contactera dans les 24h pour finaliser les détails de votre prestation (devis, menu, disposition de salle, etc.).
       </p>
@@ -159,18 +159,18 @@ function buildReceptionHtml(type, data, roomName) {
     <p style="margin:0 0 20px;font-size:14px;color:#374151;">
       Une nouvelle demande vient d'être enregistrée sur le site du Wharf Hôtel. Veuillez la traiter depuis votre espace administrateur.
     </p>
-    <div style="background:linear-gradient(135deg,#f8fafc 0%,#f1f5f9 100%);border-left:4px solid ${h(color)};border-radius:8px;padding:20px 24px;margin-bottom:24px;">
+    <div class="mail-panel" style="background-color:#f1f5f9;color:#1f2937;border-left:4px solid ${h(color)};border-radius:8px;padding:20px 24px;margin-bottom:24px;">
       <p style="margin:0 0 12px;font-size:13px;font-weight:700;color:${h(color)};letter-spacing:1px;text-transform:uppercase;">${icon} Détails de la demande #${data.id}</p>
       <table cellpadding="0" cellspacing="0" style="width:100%;">
         ${detailsHtml}
       </table>
     </div>
     <div style="text-align:center;margin-bottom:24px;">
-      <a href="${h(process.env.PUBLIC_ORIGIN||'')}/admin" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,${h(color)},#1a6b8a);color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;letter-spacing:.5px;">
+      <a class="mail-button" href="${h(process.env.PUBLIC_ORIGIN||'')}/admin" style="display:inline-block;padding:14px 32px;background-color:${h(color)};color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;letter-spacing:.5px;">
         🔐 Accéder à l'administration
       </a>
     </div>
-    <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">Cet email est automatique — ne pas répondre directement.</p>`
+    <p style="margin:0;font-size:12px;color:#4b5563;text-align:center;">Cet email est automatique — ne pas répondre directement.</p>`
   );
 }
 
@@ -181,7 +181,7 @@ export async function buildMessage(job,database,env=process.env) {
     const [rows]=await database.query('SELECT * FROM contact_replies WHERE id=$1',[job.request_id]);
     const reply=rows[0];if(!reply)return null;
     return {from:env.SMTP_FROM,to:reply.recipient,subject:reply.subject,text:reply.body,
-      html:htmlShell('Réponse du Wharf Hôtel','Suite à votre message',`<div style="white-space:pre-wrap;line-height:1.7">${h(reply.body)}</div>`),
+      html:htmlShell('Réponse du Wharf Hôtel','Suite à votre message',`<div class="mail-reply" style="white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7;color:#1f2937;">${h(reply.body)}</div>`),
       messageId:`<wharf-reply-${reply.id}-${job.id}@notifications.wharf.local>`};
   }
   const table=requestTables[job.request_type];
