@@ -7,6 +7,15 @@ test('tous les e-mails gardent leurs informations et un thème sombre commun',as
  const database={query:async()=>[[row]]};
  for(const [request_type,kind] of [['reservations','reception'],['events','reception'],['contacts','reception'],['reservations','confirmation'],['events','confirmation'],['contacts','reply']]){
   const mail=await buildMessage({id:1,request_id:1,request_type,kind},database,{SMTP_FROM:'hotel@example.invalid',NOTIFICATION_EMAIL:'admin@example.invalid'});
+  if(kind==='reception'||kind==='confirmation'){
+   for(const cell of mail.html.matchAll(/<td class="mail-(?:label|value)"[^>]*>/g)){
+    assert.match(cell[0],/bgcolor="#f1f5f9"/);
+    assert.match(cell[0],/background-color:#f1f5f9/);
+   }
+   assert.match(mail.html,/\.mail-label,\.mail-value\{background-color:#293548!important/);
+   assert.match(mail.html,/\[data-ogsc\] \.mail-label,\[data-ogsc\] \.mail-value\{background-color:#293548!important/);
+  }
+  assert.match(mail.html,/a\[x-apple-data-detectors\]/);
   assert.ok(mail.text);assert.match(mail.html,/prefers-color-scheme:dark/);assert.match(mail.html,/\[data-ogsc\]/);
   assert.match(mail.html,/class="mail-body mail-padding"[^>]*color:#1f2937/);
   assert.doesNotMatch(mail.html,/background:linear-gradient\(135deg/);
