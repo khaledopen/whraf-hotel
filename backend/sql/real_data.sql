@@ -1,11 +1,9 @@
 -- Purge des données fictives et insertion des vraies données du Wharf Hôtel
 
-TRUNCATE TABLE room_type_amenities, room_type_media, event_requests, contact_messages, reservation_requests, room_types, amenities, media, page_contents, hotel_settings, admins CASCADE;
+TRUNCATE TABLE room_type_amenities, room_type_media, event_requests, contact_messages, reservation_requests, room_types, amenities, media, page_contents, hotel_settings CASCADE;
 
--- 1. Administrateur du site
--- E-mail: admin@wharfhotel.ci | Mot de passe: WharfHotel2026!
-INSERT INTO admins (email, password_hash) VALUES 
-('admin@wharfhotel.ci', '$2b$12$tGg6X5hL2bXQW3M7Z3xJxeV4Fk6R1zQ8P0dM9yL7vK5bJ3X2y1Z0e');
+-- Create administrators separately with npm run admin:create.
+-- Never store administrator credentials or password hashes in seed files.
 
 -- 2. Équipements (Amenities)
 INSERT INTO amenities (id, name) VALUES

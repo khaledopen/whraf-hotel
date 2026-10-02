@@ -146,11 +146,10 @@ CREATE TABLE IF NOT EXISTS contact_messages (
 -- 2. PURGE ET INJECTION DES DONNÉES RÉELLES DU WHARF HÔTEL
 -- ============================================================
 
-TRUNCATE TABLE room_type_amenities, room_type_media, event_requests, contact_messages, reservation_requests, room_types, amenities, media, page_contents, hotel_settings, admins CASCADE;
+TRUNCATE TABLE room_type_amenities, room_type_media, event_requests, contact_messages, reservation_requests, room_types, amenities, media, page_contents, hotel_settings CASCADE;
 
--- Administrateur du site (email: admin@wharfhotel.ci | passe: WharfHotel2026!)
-INSERT INTO admins (email, password_hash) VALUES 
-('admin@wharfhotel.ci', '$2b$12$y21labD0SAImymcccTIgF.GbmLCDwcTXtbr4f3S1UZJI2gCXYHoN.');
+-- Create administrators separately with npm run admin:create.
+-- Never store administrator credentials or password hashes in seed files.
 
 -- Équipements
 INSERT INTO amenities (id, name) VALUES
