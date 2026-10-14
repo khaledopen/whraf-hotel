@@ -1,3 +1,4 @@
+import {registerDashboard} from './dashboard.js';
 ﻿import express from 'express';
 import {registerContactReplyRoutes} from './contact-replies.js';
 import session from 'express-session';
@@ -67,6 +68,7 @@ export function createApp({database=db,sessionStore,transport,drainNotifications
  });
  app.post('/api/auth/logout',requireAdmin,csrf,(req,res,next)=>req.session.destroy(e=>{if(e)return next(e);res.clearCookie('wharf.sid');res.json({ok:true});}));
  app.use('/api/admin',requireAdmin,(req,res,next)=>{if(['GET','HEAD'].includes(req.method))return next();csrf(req,res,next);});
+ registerDashboard(app,database);
  registerContactReplyRoutes(app,database,deliverReply);
  app.post('/api/admin/mail-process',async(_req,res)=>{if(drainNotifications)await drainNotifications();const [rows]=await database.query("SELECT state,COUNT(*)::int AS total FROM notification_jobs WHERE state NOT IN ('sent','cancelled') GROUP BY state");res.json({queue:rows});});
  app.get('/api/admin/mail-status',(_req,res)=>res.json(smtpConfiguration()));

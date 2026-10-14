@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS admin_operations (
+ id BIGSERIAL PRIMARY KEY,
+ admin_id INTEGER NOT NULL,
+ action TEXT NOT NULL,
+ section TEXT NOT NULL,
+ record_id TEXT,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
